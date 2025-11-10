@@ -18,6 +18,9 @@ interface SelectedEntry {
   comment: string
 }
 
+const quantityLabel = (item: CheeseItem) =>
+  item.quantityType === '/pc' ? 'Quantité (pc)' : 'Quantité (kg)'
+
 const TRANSPORT_FEE_PER_PRODUCT = 1000
 
 const ClientOrderPage = () => {
@@ -258,7 +261,7 @@ const ClientOrderPage = () => {
                         </p>
                       </div>
                       <label className="form-field">
-                        <span>Quantité</span>
+                        <span>{quantityLabel(item)}</span>
                         <input
                           type="number"
                           min={0}

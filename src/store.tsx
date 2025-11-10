@@ -48,7 +48,7 @@ const STORAGE_KEYS = {
 const defaultItems: CheeseItem[] = [
   {
     id: 'item-gruyere-stpaulin',
-    name: 'Gruyere / Saint Paulin',
+    name: 'Gruyère / Saint Paulin',
     price: 37500,
     quantityType: '/kg',
     multipleOf: 1,
@@ -64,7 +64,7 @@ const defaultItems: CheeseItem[] = [
   },
   {
     id: 'item-chevre',
-    name: 'Fromage de chevre (80g piece)',
+    name: 'Fromage de chèvre (80g pièce)',
     price: 3500,
     quantityType: '/pc',
     multipleOf: 1,
@@ -93,7 +93,7 @@ const defaultItems: CheeseItem[] = [
   },
   {
     id: 'item-yaourt-sucre',
-    name: 'Yaourt Sucre',
+    name: 'Yaourt Sucré',
     price: 3500,
     quantityType: '/kg',
     step: 0.25,
@@ -107,14 +107,14 @@ const defaultItems: CheeseItem[] = [
   },
   {
     id: 'item-creme-fraiche',
-    name: 'Creme Fraiche',
+    name: 'Crème Fraîche',
     price: 18000,
     quantityType: '/kg',
     step: 0.25,
   },
   {
     id: 'item-beurre',
-    name: 'Beurre (doux/sale) - 250g',
+    name: 'Beurre (doux/salé) - 250g',
     price: 11000,
     quantityType: '/pc',
     step: 1,

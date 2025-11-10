@@ -245,7 +245,7 @@ const ConfigPage = () => {
                       Incrément :{' '}
                       {typeof item.step === 'number' && item.step > 0
                         ? item.step
-                        : 'defaut'}
+                        : 'défaut'}
                     </p>
                     <p className="muted">
                       Commentaire {item.commentEnabled ? 'activé' : 'désactivé'}

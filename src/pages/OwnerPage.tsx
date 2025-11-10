@@ -1,7 +1,17 @@
 import { useMemo } from 'react'
 import { useAppData } from '../store.tsx'
-import { ORDER_STATUS_OPTIONS, QUANTITY_TYPE_LABELS } from '../types.ts'
+import {
+  ORDER_STATUS_OPTIONS,
+  QUANTITY_TYPE_LABELS,
+  type Order,
+  type OrderStatus,
+} from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
+
+const TRANSPORT_FEE_PER_PRODUCT = 1000
+
+const getStatusLabel = (status: OrderStatus) =>
+  ORDER_STATUS_OPTIONS.find((option) => option.id === status)?.label ?? status
 
 const statusClass = (status: string) => {
   switch (status) {
@@ -21,6 +31,72 @@ const statusClass = (status: string) => {
 
 const OwnerPage = () => {
   const { orders, updateOrderStatus } = useAppData()
+
+  const exportOrders = (ordersToExport: Order[], filename: string) => {
+    if (!ordersToExport.length) {
+      return
+    }
+    const headers = [
+      'orderId',
+      'createdAt',
+      'status',
+      'customer',
+      'contact',
+      'notes',
+      'item',
+      'quantity',
+      'unit',
+      'unitPrice',
+      'lineTotal',
+      'comment',
+      'transportFee',
+    ]
+    const rows: string[] = []
+    ordersToExport.forEach((order) => {
+      const statusLabel = getStatusLabel(order.status)
+      const transportFee = order.entries.length * TRANSPORT_FEE_PER_PRODUCT
+      order.entries.forEach((entry, index) => {
+        const values = [
+          order.id,
+          new Date(order.createdAt).toLocaleString('fr-FR'),
+          statusLabel,
+          order.customerName,
+          order.contact ?? '',
+          order.notes ?? '',
+          entry.itemName,
+          entry.quantity,
+          QUANTITY_TYPE_LABELS[entry.quantityType],
+          entry.unitPrice,
+          entry.unitPrice * entry.quantity,
+          entry.comment ?? '',
+          index === 0 ? transportFee : '',
+        ]
+        rows.push(
+          values
+            .map((value) =>
+              `"${String(value ?? '').replaceAll('"', '""')}"`
+            )
+            .join(','),
+        )
+      })
+    })
+    const csv = `${headers.join(',')}\n${rows.join('\n')}`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportAll = () => exportOrders(orders, 'commandes_all.csv')
+
+  const handleExportEnCours = () =>
+    exportOrders(
+      orders.filter((order) => order.status === 'en_cours'),
+      'commandes_en_cours.csv',
+    )
 
   const orderedList = useMemo(
     () =>
@@ -42,6 +118,14 @@ const OwnerPage = () => {
             clic et préparez facilement les livraisons.
           </p>
         </div>
+        <div className="export-buttons">
+          <button type="button" className="ghost-button" onClick={handleExportEnCours}>
+            Export en cours
+          </button>
+          <button type="button" className="primary-button" onClick={handleExportAll}>
+            Export all
+          </button>
+        </div>
       </div>
 
       {orderedList.length === 0 ? (
@@ -51,10 +135,13 @@ const OwnerPage = () => {
       ) : (
         <div className="order-stack">
           {orderedList.map((order) => {
-            const total = order.entries.reduce(
+            const productTotal = order.entries.reduce(
               (sum, entry) => sum + entry.quantity * entry.unitPrice,
               0,
             )
+            const transportFee =
+              order.entries.length * TRANSPORT_FEE_PER_PRODUCT
+            const totalWithTransport = productTotal + transportFee
             const statusOption =
               ORDER_STATUS_OPTIONS.find((opt) => opt.id === order.status) ??
               ORDER_STATUS_OPTIONS[0]
@@ -117,13 +204,19 @@ const OwnerPage = () => {
                         <td>{formatAriary(entry.unitPrice * entry.quantity)}</td>
                       </tr>
                     ))}
+                    <tr>
+                      <td>Frais de transport</td>
+                      <td>{order.entries.length}</td>
+                      <td>{formatAriary(TRANSPORT_FEE_PER_PRODUCT)}</td>
+                      <td>{formatAriary(transportFee)}</td>
+                    </tr>
                   </tbody>
                 </table>
 
                 <footer className="order-footer">
                   <div className="order-total">
-                    <span>Total</span>
-                    <strong>{formatAriary(total)}</strong>
+                    <span>Total </span>
+                    <strong>{formatAriary(totalWithTransport)}</strong>
                   </div>
                   <label className="form-field">
                     <span>Statut</span>
