@@ -7,7 +7,7 @@ import {
 const EPSILON = 0.0001
 
 export const inputStepFor = (item: CheeseItem) =>
-  QUANTITY_INPUT_STEP[item.quantityType]
+  item.step ?? QUANTITY_INPUT_STEP[item.quantityType]
 
 export const validateQuantityMultiple = (
   item: CheeseItem,

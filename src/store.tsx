@@ -6,7 +6,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { CheeseItem, Order, OrderEntry, OrderStatus } from './types.ts'
+import type {
+  CheeseItem,
+  Order,
+  OrderEntry,
+  OrderStatus,
+  QuantityType,
+} from './types.ts'
+import { QUANTITY_INPUT_STEP } from './types.ts'
 
 interface NewOrderEntry {
   itemId: string
@@ -41,71 +48,76 @@ const STORAGE_KEYS = {
 const defaultItems: CheeseItem[] = [
   {
     id: 'item-gruyere-stpaulin',
-    name: 'Gruyère / Saint Paulin',
+    name: 'Gruyere / Saint Paulin',
     price: 37500,
     quantityType: '/kg',
     multipleOf: 1,
+    step: 1,
   },
   {
     id: 'item-fromage-fondu',
     name: 'Fromage fondu (nature/ail/fines herbes)',
     price: 7500,
     quantityType: '/500g',
+    step: 1,
     commentEnabled: true,
   },
   {
     id: 'item-chevre',
-    name: 'Fromage de chèvre (80g pièce)',
+    name: 'Fromage de chevre (80g piece)',
     price: 3500,
     quantityType: '/pc',
     multipleOf: 1,
+    step: 1,
   },
   {
     id: 'item-fromage-blanc',
     name: 'Fromage blanc',
     price: 6000,
     quantityType: '/500g',
-    multipleOf: 0.5,
+    step: 0.5,
   },
   {
     id: 'item-mozzarella',
     name: 'Mozzarella',
     price: 3400,
     quantityType: '/100g',
+    step: 1,
   },
   {
     id: 'item-yaourt-nature',
     name: 'Yaourt Nature',
     price: 2500,
     quantityType: '/kg',
-    multipleOf: 0.25,
+    step: 0.25,
   },
   {
     id: 'item-yaourt-sucre',
-    name: 'Yaourt Sucré',
+    name: 'Yaourt Sucre',
     price: 3500,
     quantityType: '/kg',
-    multipleOf: 0.25,
+    step: 0.25,
   },
   {
     id: 'item-yaourt-grec',
     name: 'Yaourt Grec',
     price: 4000,
     quantityType: '/kg',
-    multipleOf: 0.25,
+    step: 0.25,
   },
   {
     id: 'item-creme-fraiche',
-    name: 'Crème Fraîche',
+    name: 'Creme Fraiche',
     price: 18000,
     quantityType: '/kg',
-    multipleOf: 0.25,
+    step: 0.25,
   },
   {
     id: 'item-beurre',
-    name: 'Beurre (doux/salé) - 250g',
+    name: 'Beurre (doux/sale) - 250g',
     price: 11000,
     quantityType: '/pc',
+    step: 1,
     commentEnabled: true,
   },
 ]
@@ -151,14 +163,27 @@ const usePersistentState = <T,>(key: string, initialValue: T) => {
   return [value, setValue] as const
 }
 
-const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => ({
-  ...payload,
-  multipleOf:
+const defaultStepFor = (quantityType: QuantityType) =>
+  QUANTITY_INPUT_STEP[quantityType]
+
+const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => {
+  const normalizedMultiple =
     typeof payload.multipleOf === 'number' && payload.multipleOf > 0
       ? payload.multipleOf
-      : undefined,
-  commentEnabled: Boolean(payload.commentEnabled),
-})
+      : undefined
+
+  const normalizedStep =
+    typeof payload.step === 'number' && payload.step > 0
+      ? payload.step
+      : undefined
+
+  return {
+    ...payload,
+    multipleOf: normalizedMultiple,
+    step: normalizedStep ?? defaultStepFor(payload.quantityType),
+    commentEnabled: Boolean(payload.commentEnabled),
+  }
+}
 
 export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = usePersistentState<CheeseItem[]>(
@@ -193,6 +218,11 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
 
         if (typeof updated.commentEnabled === 'undefined') {
           updated = { ...updated, commentEnabled: false }
+          changed = true
+        }
+
+        if (typeof updated.step === 'undefined' || updated.step <= 0) {
+          updated = { ...updated, step: defaultStepFor(updated.quantityType) }
           changed = true
         }
 

@@ -14,6 +14,7 @@ interface FormState {
   price: string
   quantityType: QuantityType
   multipleOf: string
+  step: string
   commentEnabled: boolean
 }
 
@@ -22,6 +23,7 @@ const initialState: FormState = {
   price: '',
   quantityType: '/pc',
   multipleOf: '',
+  step: '',
   commentEnabled: false,
 }
 
@@ -31,7 +33,7 @@ const ConfigPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const handleInputChange =
-    (field: 'name' | 'price' | 'multipleOf') =>
+    (field: 'name' | 'price' | 'multipleOf' | 'step') =>
     (event: ChangeEvent<HTMLInputElement>) => {
       setFormState((prev) => ({
         ...prev,
@@ -64,6 +66,7 @@ const ConfigPage = () => {
       price: String(item.price),
       quantityType: item.quantityType,
       multipleOf: item.multipleOf ? String(item.multipleOf) : '',
+      step: item.step ? String(item.step) : '',
       commentEnabled: Boolean(item.commentEnabled),
     })
     setEditingId(item.id)
@@ -84,11 +87,18 @@ const ConfigPage = () => {
         ? parsedMultiple
         : undefined
 
+    const parsedStep = Number(formState.step)
+    const normalizedStep =
+      formState.step.trim() && Number.isFinite(parsedStep) && parsedStep > 0
+        ? parsedStep
+        : undefined
+
     const payload = {
       name: formState.name.trim(),
       price: Number(parsedPrice.toFixed(2)),
       quantityType: formState.quantityType,
       multipleOf: normalizedMultiple,
+      step: normalizedStep,
       commentEnabled: formState.commentEnabled,
     }
 
@@ -107,8 +117,8 @@ const ConfigPage = () => {
           <p className="eyebrow">Configuration</p>
           <h2>Carte & tarifs</h2>
           <p className="section-lead">
-            Ajoutez ou modifiez des produits, définissez les multiples imposés et activez
-            un champ commentaire pour laisser le client préciser un sous-type.
+            Ajoutez ou modifiez des produits, ajustez les multiples et les incréments, et
+            activez un champ commentaire quand un sous-type doit être précisé.
           </p>
         </div>
       </div>
@@ -166,7 +176,23 @@ const ConfigPage = () => {
             />
             <small>
               Laissez vide pour autoriser n’importe quelle quantité. Exemple : 1 = multiples
-              de 1 (pratique pour le Gruyère).
+              de 1 (pratique pour le gruyère).
+            </small>
+          </label>
+
+          <label className="form-field">
+            <span>Incrément (optionnel)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.05}
+              value={formState.step}
+              onChange={handleInputChange('step')}
+              placeholder="ex: 0.25"
+            />
+            <small>
+              Valeur utilisée lorsque l’utilisateur clique sur les flèches du champ
+              quantité. Vide = incrément par défaut de l’unité.
             </small>
           </label>
 
@@ -180,7 +206,7 @@ const ConfigPage = () => {
               <span>Afficher un champ commentaire pour ce produit</span>
             </div>
             <small>
-              Permet au client de préciser “doux / salé”, “nature / ail / fines herbes”, etc.
+              Permet de préciser “doux / salé”, “nature / ail / fines herbes”, etc.
             </small>
           </label>
 
@@ -212,8 +238,14 @@ const ConfigPage = () => {
                     </p>
                     <p className="muted">
                       {item.multipleOf
-                        ? `Quantité multiple de ${item.multipleOf} ${QUANTITY_TYPE_LABELS[item.quantityType]}`
-                        : 'Quantité libre'}
+                        ? `Multiples de ${item.multipleOf} ${QUANTITY_TYPE_LABELS[item.quantityType]}`
+                        : 'Multiples libres'}
+                    </p>
+                    <p className="muted">
+                      Incrément :{' '}
+                      {typeof item.step === 'number' && item.step > 0
+                        ? item.step
+                        : 'defaut'}
                     </p>
                     <p className="muted">
                       Commentaire {item.commentEnabled ? 'activé' : 'désactivé'}

@@ -10,14 +10,23 @@ const navLinks = [
   { to: '/owner', label: 'Suivi des commandes' },
 ]
 
+import logoImage from '../Logo_Faharetana.png'
+
 function App() {
   return (
     <AppDataProvider>
       <div className="app-shell">
         <header className="app-header">
-          <div>
-            <p className="eyebrow">Happy Cheese</p>
-            <h1>Laiterie Faharetana</h1>
+          <div className="brand-title">
+            <img
+              src={logoImage}
+              alt="Logo Laiterie Faharetana"
+              className="brand-logo"
+            />
+            <div>
+              <p className="eyebrow">Happy Cheese</p>
+              <h1>Laiterie Faharetana</h1>
+            </div>
           </div>
           <nav className="main-nav">
             {navLinks.map((link) => (

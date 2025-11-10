@@ -7,12 +7,14 @@ export interface CheeseItem {
   quantityType: QuantityType
   multipleOf?: number
   commentEnabled?: boolean
+  step?: number
 }
 
 export type OrderStatus =
   | 'nouvelle'
   | 'en_cours'
   | 'livree_pas_payee'
+  | 'livree_payee'
   | 'non_livree_payee'
 
 export interface OrderEntry {
@@ -39,6 +41,7 @@ export const ORDER_STATUS_OPTIONS: Array<{ id: OrderStatus; label: string }> = [
   { id: 'nouvelle', label: 'Nouvelle commande' },
   { id: 'en_cours', label: 'En cours' },
   { id: 'livree_pas_payee', label: 'Livrée, pas payée' },
+  { id: 'livree_payee', label: 'Livré & payé' },
   { id: 'non_livree_payee', label: 'Non livrée, payée' },
 ]
 

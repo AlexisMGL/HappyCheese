@@ -55,6 +55,18 @@ a {
   border-bottom: 1px solid var(--border);
 }
 
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-logo {
+  width: 64px;
+  height: auto;
+  object-fit: contain;
+}
+
 .main-nav {
   display: flex;
   gap: 0.5rem;
@@ -410,6 +422,46 @@ select:focus {
 .order-product .muted {
   margin: 0;
   font-size: 0.85rem;
+}
+
+.thanks-banner {
+  position: fixed;
+  left: 50%;
+  bottom: -200px;
+  transform: translate(-50%, 0);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1000;
+}
+
+.thanks-banner img {
+  width: min(320px, 70vw);
+  display: block;
+}
+
+.thanks-banner.is-visible {
+  animation: thanksSlide 3s ease-in-out forwards;
+}
+
+@keyframes thanksSlide {
+  0% {
+    transform: translate(-50%, 120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -120%);
+    opacity: 0;
+  }
 }
 
 .order-footer {

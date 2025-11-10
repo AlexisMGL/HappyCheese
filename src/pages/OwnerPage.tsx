@@ -6,9 +6,11 @@ import { formatAriary } from '../utils/currency.ts'
 const statusClass = (status: string) => {
   switch (status) {
     case 'livree_pas_payee':
-      return 'status-chip warning'
+      return 'status-chip danger'
+    case 'livree_payee':
+      return 'status-chip success'
     case 'non_livree_payee':
-      return 'status-chip info'
+      return 'status-chip warning'
     case 'en_cours':
     case 'nouvelle':
       return 'status-chip info'

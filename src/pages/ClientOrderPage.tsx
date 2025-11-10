@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppData } from '../store.tsx'
 import { QUANTITY_TYPE_LABELS } from '../types.ts'
 import type { CheeseItem } from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
 import { inputStepFor, validateQuantityMultiple } from '../utils/items.ts'
+import merciImage from '../../merci.png'
 
 type Feedback =
   | { type: 'success'; message: string }
@@ -30,6 +31,7 @@ const ClientOrderPage = () => {
     {},
   )
   const [feedback, setFeedback] = useState<Feedback>(null)
+  const [showThanks, setShowThanks] = useState(false)
 
   const selectedEntries = useMemo<SelectedEntry[]>(
     () =>
@@ -103,6 +105,14 @@ const ClientOrderPage = () => {
     setQuantityErrors({})
   }
 
+  useEffect(() => {
+    if (!showThanks) {
+      return
+    }
+    const timer = window.setTimeout(() => setShowThanks(false), 3000)
+    return () => window.clearTimeout(timer)
+  }, [showThanks])
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFeedback(null)
@@ -153,6 +163,7 @@ const ClientOrderPage = () => {
         type: 'success',
         message: 'Commande transmise à la laiterie.',
       })
+      setShowThanks(true)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -165,7 +176,8 @@ const ClientOrderPage = () => {
   }
 
   return (
-    <section className="page-section">
+    <>
+      <section className="page-section">
       <div className="section-header">
         <div>
           <p className="eyebrow">Commander</p>
@@ -329,6 +341,10 @@ const ClientOrderPage = () => {
         </form>
       )}
     </section>
+      <div className={`thanks-banner ${showThanks ? 'is-visible' : ''}`}>
+        <img src={merciImage} alt="Merci" />
+      </div>
+    </>
   )
 }
 
