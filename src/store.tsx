@@ -1,19 +1,21 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
-import type {
-  CheeseItem,
-  Order,
-  OrderEntry,
-  OrderStatus,
-  QuantityType,
+import {
+  QUANTITY_INPUT_STEP,
+  type CheeseItem,
+  type Order,
+  type OrderEntry,
+  type OrderStatus,
+  type QuantityType,
 } from './types.ts'
-import { QUANTITY_INPUT_STEP } from './types.ts'
+import { supabase } from './lib/supabaseClient.ts'
 
 interface NewOrderEntry {
   itemId: string
@@ -31,281 +33,246 @@ interface NewOrder {
 interface AppDataContextShape {
   items: CheeseItem[]
   orders: Order[]
-  addItem: (payload: Omit<CheeseItem, 'id'>) => void
-  updateItem: (id: string, payload: Omit<CheeseItem, 'id'>) => void
-  removeItem: (id: string) => void
-  addOrder: (payload: NewOrder) => void
-  updateOrderStatus: (id: string, status: OrderStatus) => void
-  removeOrder: (id: string) => void
+  loading: boolean
+  addItem: (payload: Omit<CheeseItem, 'id'>) => Promise<void>
+  updateItem: (id: string, payload: Omit<CheeseItem, 'id'>) => Promise<void>
+  removeItem: (id: string) => Promise<void>
+  addOrder: (payload: NewOrder) => Promise<void>
+  updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>
+  removeOrder: (id: string) => Promise<void>
 }
 
 const AppDataContext = createContext<AppDataContextShape | undefined>(undefined)
 
-const STORAGE_KEYS = {
-  items: 'happycheese-items',
-  orders: 'happycheese-orders',
-} as const
+const TRANSPORT_FEE_PER_PRODUCT = 1000
 
-const defaultItems: CheeseItem[] = [
-  {
-    id: 'item-gruyere-stpaulin',
-    name: 'Gruyère / Saint Paulin',
-    price: 37500,
-    quantityType: '/kg',
-    multipleOf: 1,
-    step: 1,
-  },
-  {
-    id: 'item-fromage-fondu',
-    name: 'Fromage fondu (nature/ail/fines herbes)',
-    price: 7500,
-    quantityType: '/500g',
-    step: 1,
-    commentEnabled: true,
-  },
-  {
-    id: 'item-chevre',
-    name: 'Fromage de chèvre (80g pièce)',
-    price: 3500,
-    quantityType: '/pc',
-    multipleOf: 1,
-    step: 1,
-  },
-  {
-    id: 'item-fromage-blanc',
-    name: 'Fromage blanc',
-    price: 6000,
-    quantityType: '/500g',
-    step: 0.5,
-  },
-  {
-    id: 'item-mozzarella',
-    name: 'Mozzarella',
-    price: 3400,
-    quantityType: '/100g',
-    step: 1,
-  },
-  {
-    id: 'item-yaourt-nature',
-    name: 'Yaourt Nature',
-    price: 2500,
-    quantityType: '/kg',
-    step: 0.25,
-  },
-  {
-    id: 'item-yaourt-sucre',
-    name: 'Yaourt Sucré',
-    price: 3500,
-    quantityType: '/kg',
-    step: 0.25,
-  },
-  {
-    id: 'item-yaourt-grec',
-    name: 'Yaourt Grec',
-    price: 4000,
-    quantityType: '/kg',
-    step: 0.25,
-  },
-  {
-    id: 'item-creme-fraiche',
-    name: 'Crème Fraîche',
-    price: 18000,
-    quantityType: '/kg',
-    step: 0.25,
-  },
-  {
-    id: 'item-beurre',
-    name: 'Beurre (doux/salé) - 250g',
-    price: 11000,
-    quantityType: '/pc',
-    step: 1,
-    commentEnabled: true,
-  },
-]
-
-const hasWindow = typeof window !== 'undefined'
-
-const readFromStorage = <T,>(key: string, fallback: T): T => {
-  if (!hasWindow) {
-    return fallback
-  }
-  const cached = window.localStorage.getItem(key)
-  if (!cached) {
-    return fallback
-  }
-  try {
-    return JSON.parse(cached) as T
-  } catch {
-    return fallback
-  }
+type ItemRow = {
+  id: string
+  name: string
+  price: number
+  quantity_type: QuantityType
+  multiple_of: number | null
+  step: number | null
+  comment_enabled: boolean | null
 }
 
-const writeToStorage = <T,>(key: string, value: T) => {
-  if (!hasWindow) {
-    return
-  }
-  window.localStorage.setItem(key, JSON.stringify(value))
+type OrderRow = {
+  id: string
+  customer_name: string
+  contact: string | null
+  notes: string | null
+  created_at: string
+  status: OrderStatus
+  order_items: OrderItemRow[]
 }
 
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return Math.random().toString(36).slice(2, 10)
+type OrderItemRow = {
+  id: string
+  item_id: string | null
+  item_name: string
+  quantity: number
+  quantity_type: QuantityType
+  unit_price: number
+  comment: string | null
 }
 
-const usePersistentState = <T,>(key: string, initialValue: T) => {
-  const [value, setValue] = useState<T>(() => readFromStorage(key, initialValue))
+const mapItemFromRow = (row: ItemRow): CheeseItem => ({
+  id: row.id,
+  name: row.name,
+  price: row.price,
+  quantityType: row.quantity_type,
+  multipleOf: row.multiple_of ?? undefined,
+  commentEnabled: Boolean(row.comment_enabled),
+  step: row.step ?? QUANTITY_INPUT_STEP[row.quantity_type],
+})
 
-  useEffect(() => {
-    writeToStorage(key, value)
-  }, [key, value])
+const mapOrderFromRow = (row: OrderRow): Order => ({
+  id: row.id,
+  customerName: row.customer_name,
+  contact: row.contact ?? '',
+  notes: row.notes ?? '',
+  createdAt: row.created_at,
+  status: row.status,
+  entries: row.order_items.map(mapOrderEntryFromRow),
+})
 
-  return [value, setValue] as const
-}
+const mapOrderEntryFromRow = (row: OrderItemRow): OrderEntry => ({
+  id: row.id,
+  itemId: row.item_id ?? row.id,
+  itemName: row.item_name,
+  quantity: row.quantity,
+  quantityType: row.quantity_type,
+  unitPrice: row.unit_price,
+  comment: row.comment ?? undefined,
+})
 
-const defaultStepFor = (quantityType: QuantityType) =>
-  QUANTITY_INPUT_STEP[quantityType]
-
-const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => {
-  const normalizedMultiple =
-    typeof payload.multipleOf === 'number' && payload.multipleOf > 0
-      ? payload.multipleOf
-      : undefined
-
-  const normalizedStep =
+const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => ({
+  name: payload.name,
+  price: payload.price,
+  quantity_type: payload.quantityType,
+  multiple_of: payload.multipleOf ?? null,
+  comment_enabled: payload.commentEnabled ?? false,
+  step:
     typeof payload.step === 'number' && payload.step > 0
       ? payload.step
-      : undefined
-
-  return {
-    ...payload,
-    multipleOf: normalizedMultiple,
-    step: normalizedStep ?? defaultStepFor(payload.quantityType),
-    commentEnabled: Boolean(payload.commentEnabled),
-  }
-}
+      : QUANTITY_INPUT_STEP[payload.quantityType],
+})
 
 export const AppDataProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = usePersistentState<CheeseItem[]>(
-    STORAGE_KEYS.items,
-    defaultItems,
-  )
-  const [orders, setOrders] = usePersistentState<Order[]>(
-    STORAGE_KEYS.orders,
-    [],
-  )
+  const [items, setItems] = useState<CheeseItem[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchItems = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('items')
+      .select('*')
+      .order('name')
+    if (error) {
+      console.error(error)
+      throw error
+    }
+    setItems((data ?? []).map(mapItemFromRow))
+  }, [])
+
+  const fetchOrders = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*, order_items(*)')
+      .order('created_at', { ascending: false })
+    if (error) {
+      console.error(error)
+      throw error
+    }
+    setOrders((data ?? []).map(mapOrderFromRow))
+  }, [])
 
   useEffect(() => {
-    setItems((prev) => {
-      let changed = false
-      const next = prev.map((item) => {
-        const legacy = item as CheeseItem & { orderStep?: number }
-        let updated: CheeseItem = { ...item }
+    ;(async () => {
+      try {
+        await Promise.all([fetchItems(), fetchOrders()])
+      } catch (error) {
+        console.error('Supabase init error', error)
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [fetchItems, fetchOrders])
 
-        if (typeof legacy.orderStep !== 'undefined') {
-          const { orderStep, ...rest } = legacy
-          updated = { ...rest }
-          changed = true
-        }
-
-        if (
-          updated.id === 'item-gruyere-stpaulin' &&
-          updated.multipleOf !== 1
-        ) {
-          updated = { ...updated, multipleOf: 1 }
-          changed = true
-        }
-
-        if (typeof updated.commentEnabled === 'undefined') {
-          updated = { ...updated, commentEnabled: false }
-          changed = true
-        }
-
-        if (typeof updated.step === 'undefined' || updated.step <= 0) {
-          updated = { ...updated, step: defaultStepFor(updated.quantityType) }
-          changed = true
-        }
-
-        return updated
-      })
-      return changed ? next : prev
-    })
-  }, [setItems])
-
-  const addItem = (payload: Omit<CheeseItem, 'id'>) => {
-    const normalized = normalizeItemPayload(payload)
-    setItems((prev) => [...prev, { ...normalized, id: generateId() }])
+  const addItem = async (payload: Omit<CheeseItem, 'id'>) => {
+    const dbPayload = normalizeItemPayload(payload)
+    const { data, error } = await supabase
+      .from('items')
+      .insert(dbPayload)
+      .select('*')
+      .single()
+    if (error || !data) {
+      throw error
+    }
+    setItems((prev) => [...prev, mapItemFromRow(data)])
   }
 
-  const updateItem = (id: string, payload: Omit<CheeseItem, 'id'>) => {
-    const normalized = normalizeItemPayload(payload)
+  const updateItem = async (id: string, payload: Omit<CheeseItem, 'id'>) => {
+    const dbPayload = normalizeItemPayload(payload)
+    const { data, error } = await supabase
+      .from('items')
+      .update(dbPayload)
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (error || !data) {
+      throw error
+    }
     setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...normalized, id } : item)),
+      prev.map((item) => (item.id === id ? mapItemFromRow(data) : item)),
     )
   }
 
-  const removeItem = (id: string) => {
+  const removeItem = async (id: string) => {
+    const { error } = await supabase.from('items').delete().eq('id', id)
+    if (error) {
+      throw error
+    }
     setItems((prev) => prev.filter((item) => item.id !== id))
   }
 
-  const removeOrder = (id: string) => {
-    setOrders((prev) => prev.filter((order) => order.id !== id))
-  }
-
-  const addOrder = (payload: NewOrder) => {
-    const orderEntries: OrderEntry[] = payload.entries
-      .map((entry) => {
-        const item = items.find((candidate) => candidate.id === entry.itemId)
-        if (!item) {
-          return undefined
-        }
-        return {
-          id: generateId(),
-          itemId: item.id,
-          itemName: item.name,
-          quantityType: item.quantityType,
-          quantity: entry.quantity,
-          unitPrice: item.price,
-          comment: entry.comment?.trim() ? entry.comment.trim() : undefined,
-        }
-      })
-      .filter(Boolean) as OrderEntry[]
-
-    if (!orderEntries.length) {
+  const addOrder = async (payload: NewOrder) => {
+    if (!payload.entries.length) {
       throw new Error('Impossible de créer une commande vide.')
     }
-
-    const newOrder: Order = {
-      id: generateId(),
-      customerName: payload.customerName,
-      contact: payload.contact,
-      notes: payload.notes,
-      createdAt: new Date().toISOString(),
-      status: 'nouvelle',
-      entries: orderEntries,
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        customer_name: payload.customerName,
+        contact: payload.contact,
+        notes: payload.notes,
+        status: 'nouvelle',
+      })
+      .select('*')
+      .single()
+    if (orderError || !order) {
+      throw orderError
     }
 
-    setOrders((prev) => [newOrder, ...prev])
+    const orderItemsPayload = payload.entries.map((entry) => {
+      const item = items.find((candidate) => candidate.id === entry.itemId)
+      if (!item) {
+        throw new Error('Produit introuvable')
+      }
+      return {
+        order_id: order.id,
+        item_id: item.id,
+        item_name: item.name,
+        quantity: entry.quantity,
+        quantity_type: item.quantityType,
+        unit_price: item.price,
+        comment: entry.comment ?? null,
+      }
+    })
+
+    const { data: insertedItems, error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItemsPayload)
+      .select('*')
+    if (itemsError) {
+      throw itemsError
+    }
+
+    setOrders((prev) => [
+      mapOrderFromRow({
+        ...order,
+        order_items: insertedItems ?? [],
+      }),
+      ...prev,
+    ])
   }
 
-  const updateOrderStatus = (id: string, status: OrderStatus) => {
+  const updateOrderStatus = async (id: string, status: OrderStatus) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', id)
+    if (error) {
+      throw error
+    }
     setOrders((prev) =>
-      prev.map((order) =>
-        order.id === id
-          ? {
-              ...order,
-              status,
-            }
-          : order,
-      ),
+      prev.map((order) => (order.id === id ? { ...order, status } : order)),
     )
+  }
+
+  const removeOrder = async (id: string) => {
+    const { error } = await supabase.from('orders').delete().eq('id', id)
+    if (error) {
+      throw error
+    }
+    setOrders((prev) => prev.filter((order) => order.id !== id))
   }
 
   const value = useMemo(
     () => ({
       items,
       orders,
+      loading,
       addItem,
       updateItem,
       removeItem,
@@ -313,7 +280,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       updateOrderStatus,
       removeOrder,
     }),
-    [items, orders],
+    [items, orders, loading],
   )
 
   return (
