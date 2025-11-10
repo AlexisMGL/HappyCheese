@@ -36,6 +36,7 @@ interface AppDataContextShape {
   removeItem: (id: string) => void
   addOrder: (payload: NewOrder) => void
   updateOrderStatus: (id: string, status: OrderStatus) => void
+  removeOrder: (id: string) => void
 }
 
 const AppDataContext = createContext<AppDataContextShape | undefined>(undefined)
@@ -248,6 +249,10 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => prev.filter((item) => item.id !== id))
   }
 
+  const removeOrder = (id: string) => {
+    setOrders((prev) => prev.filter((order) => order.id !== id))
+  }
+
   const addOrder = (payload: NewOrder) => {
     const orderEntries: OrderEntry[] = payload.entries
       .map((entry) => {
@@ -306,6 +311,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       removeItem,
       addOrder,
       updateOrderStatus,
+      removeOrder,
     }),
     [items, orders],
   )

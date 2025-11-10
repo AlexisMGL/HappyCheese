@@ -30,7 +30,7 @@ const statusClass = (status: string) => {
 }
 
 const OwnerPage = () => {
-  const { orders, updateOrderStatus } = useAppData()
+  const { orders, updateOrderStatus, removeOrder } = useAppData()
 
   const exportOrders = (ordersToExport: Order[], filename: string) => {
     if (!ordersToExport.length) {
@@ -142,9 +142,9 @@ const OwnerPage = () => {
             const transportFee =
               order.entries.length * TRANSPORT_FEE_PER_PRODUCT
             const totalWithTransport = productTotal + transportFee
-            const statusOption =
-              ORDER_STATUS_OPTIONS.find((opt) => opt.id === order.status) ??
-              ORDER_STATUS_OPTIONS[0]
+            const statusLabel = getStatusLabel(order.status as OrderStatus)
+            const canDelete =
+              order.status === 'nouvelle' || order.status === 'en_cours'
             return (
               <article className="order-card" key={order.id}>
                 <header>
@@ -159,7 +159,7 @@ const OwnerPage = () => {
                     </h3>
                   </div>
                   <span className={statusClass(order.status)}>
-                    {statusOption.label}
+                    {statusLabel}
                   </span>
                 </header>
 
@@ -218,24 +218,35 @@ const OwnerPage = () => {
                     <span>Total </span>
                     <strong>{formatAriary(totalWithTransport)}</strong>
                   </div>
-                  <label className="form-field">
-                    <span>Statut</span>
-                    <select
-                      value={order.status}
-                      onChange={(event) =>
-                        updateOrderStatus(
-                          order.id,
-                          event.target.value as (typeof ORDER_STATUS_OPTIONS)[number]['id'],
-                        )
-                      }
-                    >
-                      {ORDER_STATUS_OPTIONS.map((option) => (
-                        <option value={option.id} key={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="order-actions">
+                    <label className="form-field">
+                      <span>Statut</span>
+                      <select
+                        value={order.status}
+                        onChange={(event) =>
+                          updateOrderStatus(
+                            order.id,
+                            event.target.value as OrderStatus,
+                          )
+                        }
+                      >
+                        {ORDER_STATUS_OPTIONS.map((option) => (
+                          <option value={option.id} key={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => removeOrder(order.id)}
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
                 </footer>
               </article>
             )

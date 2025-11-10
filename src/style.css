@@ -480,6 +480,12 @@ select:focus {
   padding-top: 1rem;
 }
 
+.order-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
 .status-chip {
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
