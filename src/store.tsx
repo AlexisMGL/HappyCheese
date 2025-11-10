@@ -44,8 +44,6 @@ interface AppDataContextShape {
 
 const AppDataContext = createContext<AppDataContextShape | undefined>(undefined)
 
-const TRANSPORT_FEE_PER_PRODUCT = 1000
-
 type ItemRow = {
   id: string
   name: string
