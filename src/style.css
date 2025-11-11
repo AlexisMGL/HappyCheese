@@ -67,6 +67,13 @@ a {
   object-fit: contain;
 }
 
+.admin-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .main-nav {
   display: flex;
   gap: 0.5rem;
@@ -88,6 +95,28 @@ a {
   background: #fff;
   border: 1px solid var(--border);
   color: var(--accent-dark);
+}
+
+.admin-toggle {
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.admin-toggle.non-admin {
+  background: #dc2626;
+}
+
+.admin-toggle.is-admin {
+  background: #16a34a;
+}
+
+.admin-toggle:active {
+  transform: scale(0.97);
 }
 
 .page-content {

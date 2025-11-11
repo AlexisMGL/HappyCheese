@@ -7,6 +7,7 @@ import {
   type OrderStatus,
 } from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
+import { useAdmin } from '../contexts/AdminContext.tsx'
 
 const TRANSPORT_FEE_PER_PRODUCT = 1000
 
@@ -29,8 +30,11 @@ const statusClass = (status: string) => {
   }
 }
 
+const FIVE_MINUTES_IN_MS = 5 * 60 * 1000
+
 const OwnerPage = () => {
   const { orders, updateOrderStatus, removeOrder } = useAppData()
+  const { isAdmin } = useAdmin()
 
   const exportOrders = (ordersToExport: Order[], filename: string) => {
     if (!ordersToExport.length) {
@@ -145,6 +149,10 @@ const OwnerPage = () => {
             const statusLabel = getStatusLabel(order.status as OrderStatus)
             const canDelete =
               order.status === 'nouvelle' || order.status === 'en_cours'
+            const createdAtTime = new Date(order.createdAt).getTime()
+            const isRecent =
+              Date.now() - createdAtTime < FIVE_MINUTES_IN_MS
+            const canDeleteForUser = canDelete && (isAdmin || isRecent)
             return (
               <article className="order-card" key={order.id}>
                 <header>
@@ -241,7 +249,18 @@ const OwnerPage = () => {
                       <button
                         type="button"
                         className="ghost-button"
-                        onClick={() => removeOrder(order.id)}
+                        disabled={!canDeleteForUser}
+                        onClick={() => {
+                          if (!canDeleteForUser) {
+                            return
+                          }
+                          removeOrder(order.id)
+                        }}
+                        title={
+                          !canDeleteForUser
+                            ? 'Réservé aux admins ou commandes de moins de 5 minutes'
+                            : undefined
+                        }
                       >
                         Supprimer
                       </button>

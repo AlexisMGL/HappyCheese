@@ -8,6 +8,7 @@ import {
   type QuantityType,
 } from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
+import { useAdmin } from '../contexts/AdminContext.tsx'
 
 interface FormState {
   name: string
@@ -29,6 +30,7 @@ const initialState: FormState = {
 
 const ConfigPage = () => {
   const { items, addItem, updateItem, removeItem } = useAppData()
+  const { isAdmin } = useAdmin()
   const [formState, setFormState] = useState<FormState>(initialState)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -74,6 +76,10 @@ const ConfigPage = () => {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!isAdmin) {
+      window.alert('Seul un administrateur peut modifier la carte.')
+      return
+    }
     const parsedPrice = Number(formState.price)
     if (!formState.name.trim() || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
       return
@@ -211,7 +217,12 @@ const ConfigPage = () => {
           </label>
 
           <div className="form-actions">
-            <button className="primary-button" type="submit">
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={!isAdmin}
+              title={!isAdmin ? 'Réservé aux administrateurs' : undefined}
+            >
               {editingId ? 'Mettre à jour' : 'Ajouter à la carte'}
             </button>
             {editingId && (
@@ -255,14 +266,28 @@ const ConfigPage = () => {
                     <button
                       className="ghost-button"
                       type="button"
-                      onClick={() => populateForEdit(item)}
+                      onClick={() => {
+                        if (!isAdmin) {
+                          return
+                        }
+                        populateForEdit(item)
+                      }}
+                      disabled={!isAdmin}
+                      title={!isAdmin ? 'Réservé aux administrateurs' : undefined}
                     >
                       Modifier
                     </button>
                     <button
                       className="ghost-button"
                       type="button"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => {
+                        if (!isAdmin) {
+                          return
+                        }
+                        removeItem(item.id)
+                      }}
+                      disabled={!isAdmin}
+                      title={!isAdmin ? 'Réservé aux administrateurs' : undefined}
                     >
                       Retirer
                     </button>

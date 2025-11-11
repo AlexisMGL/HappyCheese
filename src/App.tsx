@@ -3,6 +3,7 @@ import ClientOrderPage from './pages/ClientOrderPage.tsx'
 import ConfigPage from './pages/ConfigPage.tsx'
 import OwnerPage from './pages/OwnerPage.tsx'
 import { AppDataProvider } from './store.tsx'
+import { AdminProvider, useAdmin } from './contexts/AdminContext.tsx'
 
 const navLinks = [
   { to: '/', label: 'Commander' },
@@ -12,22 +13,44 @@ const navLinks = [
 
 import logoImage from '../Logo_Faharetana.png'
 
-function App() {
+const AppLayout = () => {
+  const { isAdmin, setAdmin } = useAdmin()
+
+  const handleAdminToggle = () => {
+    if (isAdmin) {
+      setAdmin(false)
+      return
+    }
+    const password = window.prompt('Mot de passe administrateur ?')
+    if (password === null) {
+      return
+    }
+    if (password === 'TialoveCheese') {
+      setAdmin(true)
+    } else {
+      window.alert('Mot de passe incorrect.')
+    }
+  }
+
+  const adminClasses = `admin-toggle ${
+    isAdmin ? 'is-admin' : 'non-admin'
+  }`
+
   return (
-    <AppDataProvider>
-      <div className="app-shell">
-        <header className="app-header">
-          <div className="brand-title">
-            <img
-              src={logoImage}
-              alt="Logo Laiterie Faharetana"
-              className="brand-logo"
-            />
-            <div>
-              <p className="eyebrow">MADACHEESE Plateform</p>
-              <h1>Laiterie Faharetana</h1>
-            </div>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="brand-title">
+          <img
+            src={logoImage}
+            alt="Logo Laiterie Faharetana"
+            className="brand-logo"
+          />
+          <div>
+            <p className="eyebrow">MADACHEESE Plateform</p>
+            <h1>Laiterie Faharetana</h1>
           </div>
+        </div>
+        <div className="admin-controls">
           <nav className="main-nav">
             {navLinks.map((link) => (
               <NavLink
@@ -41,18 +64,36 @@ function App() {
               </NavLink>
             ))}
           </nav>
-        </header>
+          <button
+            type="button"
+            className={adminClasses}
+            onClick={handleAdminToggle}
+            aria-pressed={isAdmin}
+          >
+            {isAdmin ? 'admin' : 'non admin'}
+          </button>
+        </div>
+      </header>
 
-        <main className="page-content">
-          <Routes>
-            <Route path="/" element={<ClientOrderPage />} />
-            <Route path="/config" element={<ConfigPage />} />
-            <Route path="/owner" element={<OwnerPage />} />
-            <Route path="*" element={<ClientOrderPage />} />
-          </Routes>
-        </main>
-      </div>
-    </AppDataProvider>
+      <main className="page-content">
+        <Routes>
+          <Route path="/" element={<ClientOrderPage />} />
+          <Route path="/config" element={<ConfigPage />} />
+          <Route path="/owner" element={<OwnerPage />} />
+          <Route path="*" element={<ClientOrderPage />} />
+        </Routes>
+      </main>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <AdminProvider>
+      <AppDataProvider>
+        <AppLayout />
+      </AppDataProvider>
+    </AdminProvider>
   )
 }
 
