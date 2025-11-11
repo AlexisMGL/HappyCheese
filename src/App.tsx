@@ -24,7 +24,7 @@ function App() {
               className="brand-logo"
             />
             <div>
-              <p className="eyebrow">Happy Cheese</p>
+              <p className="eyebrow">MADACHEESE Plateform</p>
               <h1>Laiterie Faharetana</h1>
             </div>
           </div>

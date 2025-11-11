@@ -441,7 +441,7 @@ select:focus {
 }
 
 .thanks-banner img {
-  width: min(320px, 70vw);
+  width: min(640px, 90vw);
   display: block;
 }
 
