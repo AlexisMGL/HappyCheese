@@ -456,6 +456,16 @@ select:focus {
   border-bottom: 1px solid var(--border);
 }
 
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.consign-qty-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .order-product {
   display: flex;
   flex-direction: column;

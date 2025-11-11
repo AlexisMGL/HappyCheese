@@ -11,6 +11,8 @@ import {
   QUANTITY_INPUT_STEP,
   type Client,
   type CheeseItem,
+  type ConsignTotal,
+  type ConsignType,
   type Order,
   type OrderEntry,
   type OrderStatus,
@@ -32,10 +34,23 @@ interface NewOrder {
   entries: NewOrderEntry[]
 }
 
+interface ConsignItemInput {
+  typeId: string
+  quantity: number
+}
+
+interface ConsignTransactionPayload {
+  clientId: string
+  items: ConsignItemInput[]
+  note?: string
+}
+
 interface AppDataContextShape {
   items: CheeseItem[]
   orders: Order[]
   clients: Client[]
+  consignTypes: ConsignType[]
+  consignTotals: ConsignTotal[]
   loading: boolean
   addItem: (payload: Omit<CheeseItem, 'id'>) => Promise<void>
   updateItem: (id: string, payload: Omit<CheeseItem, 'id'>) => Promise<void>
@@ -45,6 +60,10 @@ interface AppDataContextShape {
   removeOrder: (id: string) => Promise<void>
   addClient: (payload: { name: string; contact?: string }) => Promise<void>
   removeClient: (id: string) => Promise<void>
+  addConsignType: (label: string) => Promise<void>
+  removeConsignType: (id: string) => Promise<void>
+  assignConsigns: (payload: ConsignTransactionPayload) => Promise<void>
+  returnConsigns: (payload: ConsignTransactionPayload) => Promise<void>
 }
 
 const AppDataContext = createContext<AppDataContextShape | undefined>(undefined)
@@ -87,6 +106,21 @@ type ClientRow = {
   created_at: string
 }
 
+type ConsignTypeRow = {
+  id: string
+  label: string
+  created_at: string
+}
+
+type ConsignMovementRow = {
+  id: string
+  client_id: string
+  type_id: string
+  quantity: number
+  note: string | null
+  created_at: string
+}
+
 const mapItemFromRow = (row: ItemRow): CheeseItem => ({
   id: row.id,
   name: row.name,
@@ -125,6 +159,94 @@ const mapClientFromRow = (row: ClientRow): Client => ({
   createdAt: row.created_at,
 })
 
+const mapConsignTypeFromRow = (row: ConsignTypeRow): ConsignType => ({
+  id: row.id,
+  label: row.label,
+  createdAt: row.created_at,
+})
+
+const buildConsignTotalsFromRows = (
+  rows: Array<Pick<ConsignMovementRow, 'client_id' | 'type_id' | 'quantity'>>,
+): ConsignTotal[] => {
+  const map = new Map<string, number>()
+  rows.forEach((row) => {
+    if (!row.client_id || !row.type_id) {
+      return
+    }
+    const key = `${row.client_id}::${row.type_id}`
+    const existing = map.get(key) ?? 0
+    map.set(key, existing + row.quantity)
+  })
+  return Array.from(map.entries())
+    .map(([key, quantity]) => {
+      if (quantity === 0) {
+        return null
+      }
+      const [clientId, typeId] = key.split('::')
+      return {
+        clientId,
+        typeId,
+        quantity,
+      }
+    })
+    .filter((entry): entry is ConsignTotal => Boolean(entry))
+}
+
+const sanitizeConsignItems = (items: ConsignItemInput[]): ConsignItemInput[] => {
+  const aggregates = new Map<string, number>()
+  items.forEach((item) => {
+    const trimmedId = item.typeId?.trim()
+    if (!trimmedId) {
+      return
+    }
+    const numericQuantity = Math.floor(Number(item.quantity))
+    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+      return
+    }
+    aggregates.set(
+      trimmedId,
+      (aggregates.get(trimmedId) ?? 0) + numericQuantity,
+    )
+  })
+  return Array.from(aggregates.entries()).map(([typeId, quantity]) => ({
+    typeId,
+    quantity,
+  }))
+}
+
+const applyConsignDeltas = (
+  totals: ConsignTotal[],
+  clientId: string,
+  items: ConsignItemInput[],
+  multiplier: 1 | -1,
+): ConsignTotal[] => {
+  const map = new Map<string, number>()
+  totals.forEach((entry) => {
+    const key = `${entry.clientId}::${entry.typeId}`
+    map.set(key, entry.quantity)
+  })
+  items.forEach((item) => {
+    const key = `${clientId}::${item.typeId}`
+    const current = map.get(key) ?? 0
+    const next = current + item.quantity * multiplier
+    if (next === 0) {
+      map.delete(key)
+    } else {
+      map.set(key, next)
+    }
+  })
+  return Array.from(map.entries())
+    .map(([key, quantity]) => {
+      const [nextClientId, nextTypeId] = key.split('::')
+      return {
+        clientId: nextClientId,
+        typeId: nextTypeId,
+        quantity,
+      }
+    })
+    .filter((entry) => entry.quantity !== 0)
+}
+
 const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => ({
   name: payload.name,
   price: payload.price,
@@ -141,6 +263,8 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CheeseItem[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [consignTypes, setConsignTypes] = useState<ConsignType[]>([])
+  const [consignTotals, setConsignTotals] = useState<ConsignTotal[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchItems = useCallback(async () => {
@@ -179,17 +303,52 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     setClients((data ?? []).map(mapClientFromRow))
   }, [])
 
+  const fetchConsignTypes = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('consign_types')
+      .select('*')
+      .order('label')
+    if (error) {
+      console.error(error)
+      throw error
+    }
+    setConsignTypes((data ?? []).map(mapConsignTypeFromRow))
+  }, [])
+
+  const fetchConsignTotals = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('consign_movements')
+      .select('client_id,type_id,quantity')
+    if (error) {
+      console.error(error)
+      throw error
+    }
+    setConsignTotals(buildConsignTotalsFromRows(data ?? []))
+  }, [])
+
   useEffect(() => {
     ;(async () => {
       try {
-        await Promise.all([fetchItems(), fetchOrders(), fetchClients()])
+        await Promise.all([
+          fetchItems(),
+          fetchOrders(),
+          fetchClients(),
+          fetchConsignTypes(),
+          fetchConsignTotals(),
+        ])
       } catch (error) {
         console.error('Supabase init error', error)
       } finally {
         setLoading(false)
       }
     })()
-  }, [fetchItems, fetchOrders, fetchClients])
+  }, [
+    fetchItems,
+    fetchOrders,
+    fetchClients,
+    fetchConsignTypes,
+    fetchConsignTotals,
+  ])
 
   const addItem = async (payload: Omit<CheeseItem, 'id'>) => {
     const dbPayload = normalizeItemPayload(payload)
@@ -331,13 +490,109 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       throw error
     }
     setClients((prev) => prev.filter((client) => client.id !== id))
+    setConsignTotals((prev) => prev.filter((entry) => entry.clientId !== id))
   }
+
+  const addConsignType = async (label: string) => {
+    const trimmedLabel = label.trim()
+    if (!trimmedLabel) {
+      throw new Error('Le nom de la consigne est obligatoire.')
+    }
+    const { data, error } = await supabase
+      .from('consign_types')
+      .insert({ label: trimmedLabel })
+      .select('*')
+      .single()
+    if (error || !data) {
+      throw error
+    }
+    setConsignTypes((prev) =>
+      [...prev, mapConsignTypeFromRow(data)].sort((a, b) =>
+        a.label.localeCompare(b.label),
+      ),
+    )
+  }
+
+  const removeConsignType = async (id: string) => {
+    const { error } = await supabase.from('consign_types').delete().eq('id', id)
+    if (error) {
+      throw error
+    }
+    setConsignTypes((prev) => prev.filter((type) => type.id !== id))
+    setConsignTotals((prev) => prev.filter((entry) => entry.typeId !== id))
+  }
+
+  const recordConsignMovements = useCallback(
+    async (
+      payload: ConsignTransactionPayload,
+      multiplier: 1 | -1,
+    ): Promise<void> => {
+      const clientId = payload.clientId.trim()
+      if (!clientId) {
+        throw new Error('Selectionnez un client.')
+      }
+      const sanitizedItems = sanitizeConsignItems(payload.items)
+      if (!sanitizedItems.length) {
+        throw new Error('Ajoutez au moins une consigne a traiter.')
+      }
+
+      if (multiplier === -1) {
+        const outstandingMap = new Map<string, number>()
+        consignTotals.forEach((entry) => {
+          if (entry.clientId === clientId) {
+            outstandingMap.set(entry.typeId, entry.quantity)
+          }
+        })
+        sanitizedItems.forEach((item) => {
+          const available = outstandingMap.get(item.typeId) ?? 0
+          if (item.quantity > available) {
+            throw new Error(
+              'Quantite retournee superieure aux consignes du client.',
+            )
+          }
+        })
+      }
+
+      const payloadRows = sanitizedItems.map((item) => ({
+        client_id: clientId,
+        type_id: item.typeId,
+        quantity: item.quantity * multiplier,
+        note: payload.note?.trim() ? payload.note.trim() : null,
+      }))
+      const { error } = await supabase
+        .from('consign_movements')
+        .insert(payloadRows)
+      if (error) {
+        throw error
+      }
+      setConsignTotals((prev) =>
+        applyConsignDeltas(prev, clientId, sanitizedItems, multiplier),
+      )
+    },
+    [consignTotals],
+  )
+
+  const assignConsigns = useCallback(
+    async (payload: ConsignTransactionPayload) => {
+      await recordConsignMovements(payload, 1)
+    },
+    [recordConsignMovements],
+  )
+
+  const returnConsigns = useCallback(
+    async (payload: ConsignTransactionPayload) => {
+      await recordConsignMovements(payload, -1)
+    },
+    [recordConsignMovements],
+  )
 
   const value = useMemo(
     () => ({
       items,
       orders,
       clients,
+      consignTypes,
+      consignTotals,
       loading,
       addItem,
       updateItem,
@@ -347,8 +602,23 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       removeOrder,
       addClient,
       removeClient,
+      addConsignType,
+      removeConsignType,
+      assignConsigns,
+      returnConsigns,
     }),
-    [items, orders, clients, loading],
+    [
+      items,
+      orders,
+      clients,
+      consignTypes,
+      consignTotals,
+      loading,
+      addConsignType,
+      removeConsignType,
+      assignConsigns,
+      returnConsigns,
+    ],
   )
 
   return (
