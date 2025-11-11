@@ -211,6 +211,14 @@ h3 {
   font-weight: 600;
 }
 
+.client-preview {
+  border: 1px dashed var(--border);
+  border-radius: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-muted);
+  margin-top: 0.25rem;
+}
+
 input,
 textarea,
 select {

@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import ClientOrderPage from './pages/ClientOrderPage.tsx'
+import ClientsPage from './pages/ClientsPage.tsx'
 import ConfigPage from './pages/ConfigPage.tsx'
 import OwnerPage from './pages/OwnerPage.tsx'
 import { AppDataProvider } from './store.tsx'
@@ -7,6 +8,7 @@ import { AdminProvider, useAdmin } from './contexts/AdminContext.tsx'
 
 const navLinks = [
   { to: '/', label: 'Commander' },
+  { to: '/clients', label: 'Clients' },
   { to: '/config', label: 'Carte & Tarifs' },
   { to: '/owner', label: 'Suivi des commandes' },
 ]
@@ -78,6 +80,7 @@ const AppLayout = () => {
       <main className="page-content">
         <Routes>
           <Route path="/" element={<ClientOrderPage />} />
+          <Route path="/clients" element={<ClientsPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/owner" element={<OwnerPage />} />
           <Route path="*" element={<ClientOrderPage />} />

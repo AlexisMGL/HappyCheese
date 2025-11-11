@@ -30,9 +30,8 @@ const quantityLabel = (item: CheeseItem) =>
 const TRANSPORT_FEE_PER_PRODUCT = 1000
 
 const ClientOrderPage = () => {
-  const { items, addOrder } = useAppData()
-  const [customerName, setCustomerName] = useState('')
-  const [contact, setContact] = useState('')
+  const { items, clients, addOrder } = useAppData()
+  const [selectedClientId, setSelectedClientId] = useState('')
   const [notes, setNotes] = useState('')
   const [selection, setSelection] = useState<Record<string, number>>({})
   const [comments, setComments] = useState<Record<string, string>>({})
@@ -63,6 +62,10 @@ const ClientOrderPage = () => {
         return acc
       }, []),
     [items, selection, comments],
+  )
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId),
+    [clients, selectedClientId],
   )
 
   const productTotal = selectedEntries.reduce(
@@ -113,11 +116,22 @@ const ClientOrderPage = () => {
   const resetForm = () => {
     setSelection({})
     setComments({})
-    setCustomerName('')
-    setContact('')
+    setSelectedClientId('')
     setNotes('')
     setQuantityErrors({})
   }
+
+  useEffect(() => {
+    if (!selectedClientId) {
+      return
+    }
+    const stillExists = clients.some(
+      (client) => client.id === selectedClientId,
+    )
+    if (!stillExists) {
+      setSelectedClientId('')
+    }
+  }, [clients, selectedClientId])
 
   useEffect(() => {
     if (!showThanks) {
@@ -131,8 +145,11 @@ const ClientOrderPage = () => {
     event.preventDefault()
     setFeedback(null)
 
-    if (!customerName.trim()) {
-      setFeedback({ type: 'error', message: 'Merci de renseigner un nom.' })
+    if (!selectedClient) {
+      setFeedback({
+        type: 'error',
+        message: 'Selectionnez un client avant de valider.',
+      })
       return
     }
 
@@ -163,8 +180,8 @@ const ClientOrderPage = () => {
 
     try {
       addOrder({
-        customerName: customerName.trim(),
-        contact,
+        customerName: selectedClient.name,
+        contact: selectedClient.contact,
         notes,
         entries: selectedEntries.map((entry) => ({
           itemId: entry.item.id,
@@ -221,24 +238,43 @@ const ClientOrderPage = () => {
             <fieldset className="form-section">
               <legend>Informations client</legend>
               <label className="form-field">
-                <span>Nom / entreprise *</span>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(event) => setCustomerName(event.target.value)}
-                  placeholder="ex: Faharetana Shop"
+                <span>Choisir un client *</span>
+                <select
+                  value={selectedClientId}
+                  onChange={(event) => setSelectedClientId(event.target.value)}
+                  disabled={clients.length === 0}
                   required
-                />
+                >
+                  <option value="">
+                    {clients.length === 0
+                      ? 'Ajoutez un client dans l onglet Clients'
+                      : 'Selectionnez un client'}
+                  </option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <label className="form-field">
-                <span>Contact (téléphone, email…)</span>
-                <input
-                  type="text"
-                  value={contact}
-                  onChange={(event) => setContact(event.target.value)}
-                  placeholder="034 00 000 00"
-                />
-              </label>
+              {clients.length === 0 ? (
+                <p className="muted">
+                  Ajoutez au moins un client dans l onglet Clients avant de
+                  passer commande.
+                </p>
+              ) : selectedClient ? (
+                <div className="client-preview">
+                  <strong>{selectedClient.name}</strong>
+                  {selectedClient.contact && (
+                    <p className="muted">{selectedClient.contact}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="muted">
+                  Selectionnez un client existant ou creez-en un dans l onglet
+                  Clients.
+                </p>
+              )}
               <label className="form-field">
                 <span>Notes</span>
                 <textarea
