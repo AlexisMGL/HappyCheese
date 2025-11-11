@@ -231,7 +231,14 @@ const OwnerPage = () => {
                       <span>Statut</span>
                       <select
                         value={order.status}
+                        disabled={!isAdmin}
+                        title={
+                          !isAdmin
+                            ? 'Réservé aux administrateurs'
+                            : undefined
+                        }
                         onChange={(event) =>
+                          isAdmin &&
                           updateOrderStatus(
                             order.id,
                             event.target.value as OrderStatus,
