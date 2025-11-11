@@ -25,7 +25,7 @@ interface SelectedEntry {
 }
 
 const quantityLabel = (item: CheeseItem) =>
-  `Quantit� (${displayUnitLabelFor(item)})`
+  `Quantité (${displayUnitLabelFor(item)})`
 
 const TRANSPORT_FEE_PER_PRODUCT = 1000
 
