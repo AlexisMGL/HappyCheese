@@ -153,6 +153,8 @@ const OwnerPage = () => {
             const isRecent =
               Date.now() - createdAtTime < FIVE_MINUTES_IN_MS
             const canDeleteForUser = canDelete && (isAdmin || isRecent)
+            const showStatusControl = isAdmin
+            const showDeleteButton = canDeleteForUser
             return (
               <article className="order-card" key={order.id}>
                 <header>
@@ -226,53 +228,39 @@ const OwnerPage = () => {
                     <span>Total </span>
                     <strong>{formatAriary(totalWithTransport)}</strong>
                   </div>
-                  <div className="order-actions">
-                    <label className="form-field">
-                      <span>Statut</span>
-                      <select
-                        value={order.status}
-                        disabled={!isAdmin}
-                        title={
-                          !isAdmin
-                            ? 'Réservé aux administrateurs'
-                            : undefined
-                        }
-                        onChange={(event) =>
-                          isAdmin &&
-                          updateOrderStatus(
-                            order.id,
-                            event.target.value as OrderStatus,
-                          )
-                        }
-                      >
-                        {ORDER_STATUS_OPTIONS.map((option) => (
-                          <option value={option.id} key={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {canDelete && (
-                      <button
-                        type="button"
-                        className="ghost-button"
-                        disabled={!canDeleteForUser}
-                        onClick={() => {
-                          if (!canDeleteForUser) {
-                            return
-                          }
-                          removeOrder(order.id)
-                        }}
-                        title={
-                          !canDeleteForUser
-                            ? 'Réservé aux admins ou commandes de moins de 5 minutes'
-                            : undefined
-                        }
-                      >
-                        Supprimer
-                      </button>
-                    )}
-                  </div>
+                  {(showStatusControl || showDeleteButton) && (
+                    <div className="order-actions">
+                      {showStatusControl && (
+                        <label className="form-field">
+                          <span>Statut</span>
+                          <select
+                            value={order.status}
+                            onChange={(event) =>
+                              updateOrderStatus(
+                                order.id,
+                                event.target.value as OrderStatus,
+                              )
+                            }
+                          >
+                            {ORDER_STATUS_OPTIONS.map((option) => (
+                              <option value={option.id} key={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      {showDeleteButton && (
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => removeOrder(order.id)}
+                        >
+                          Supprimer
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </footer>
               </article>
             )

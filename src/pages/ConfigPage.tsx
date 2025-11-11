@@ -130,7 +130,8 @@ const ConfigPage = () => {
       </div>
 
       <div className="grid-2">
-        <form className="card" onSubmit={handleSubmit}>
+        {isAdmin ? (
+          <form className="card" onSubmit={handleSubmit}>
           <h3>{editingId ? 'Modifier le produit' : 'Ajouter un produit'}</h3>
           <label className="form-field">
             <span>Nom *</span>
@@ -215,15 +216,9 @@ const ConfigPage = () => {
               Permet de préciser “doux / salé”, “nature / ail / fines herbes”, etc.
             </small>
           </label>
-
           <div className="form-actions">
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={!isAdmin}
-              title={!isAdmin ? 'Réservé aux administrateurs' : undefined}
-            >
-              {editingId ? 'Mettre à jour' : 'Ajouter à la carte'}
+            <button className="primary-button" type="submit">
+              {editingId ? 'Mettre a jour' : 'Ajouter a la carte'}
             </button>
             {editingId && (
               <button className="ghost-button" type="button" onClick={resetForm}>
@@ -232,6 +227,14 @@ const ConfigPage = () => {
             )}
           </div>
         </form>
+        ) : (
+          <div className="card">
+            <h3>Carte verrouillee</h3>
+            <p className="muted">
+              Activez le mode administrateur pour ajouter ou modifier les produits.
+            </p>
+          </div>
+        )}
 
         <div className="card">
           <h3>Carte actuelle</h3>
@@ -262,36 +265,24 @@ const ConfigPage = () => {
                       Commentaire {item.commentEnabled ? 'activé' : 'désactivé'}
                     </p>
                   </div>
-                  <div className="item-actions">
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      onClick={() => {
-                        if (!isAdmin) {
-                          return
-                        }
-                        populateForEdit(item)
-                      }}
-                      disabled={!isAdmin}
-                      title={!isAdmin ? 'Réservé aux administrateurs' : undefined}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      onClick={() => {
-                        if (!isAdmin) {
-                          return
-                        }
-                        removeItem(item.id)
-                      }}
-                      disabled={!isAdmin}
-                      title={!isAdmin ? 'Réservé aux administrateurs' : undefined}
-                    >
-                      Retirer
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="item-actions">
+                      <button
+                        className="ghost-button"
+                        type="button"
+                        onClick={() => populateForEdit(item)}
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        className="ghost-button"
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
