@@ -4,7 +4,12 @@ import { useAppData } from '../store.tsx'
 import { QUANTITY_TYPE_LABELS } from '../types.ts'
 import type { CheeseItem } from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
-import { inputStepFor, validateQuantityMultiple } from '../utils/items.ts'
+import {
+  displayUnitLabelFor,
+  inputStepFor,
+  toUnitQuantity,
+  validateQuantityMultiple,
+} from '../utils/items.ts'
 import merciImage from '../../merci.png'
 
 type Feedback =
@@ -15,11 +20,12 @@ type Feedback =
 interface SelectedEntry {
   item: CheeseItem
   quantity: number
+  unitQuantity: number
   comment: string
 }
 
 const quantityLabel = (item: CheeseItem) =>
-  item.quantityType === '/pc' ? 'Quantité (pc)' : 'Quantité (kg)'
+  `Quantit� (${displayUnitLabelFor(item)})`
 
 const TRANSPORT_FEE_PER_PRODUCT = 1000
 
@@ -43,10 +49,15 @@ const ClientOrderPage = () => {
         if (quantity <= 0) {
           return acc
         }
+        const unitQuantity = toUnitQuantity(item, quantity)
+        if (unitQuantity <= 0) {
+          return acc
+        }
         const commentValue = (comments[item.id] ?? '').trim()
         acc.push({
           item,
           quantity,
+          unitQuantity,
           comment: commentValue,
         })
         return acc
@@ -55,7 +66,7 @@ const ClientOrderPage = () => {
   )
 
   const productTotal = selectedEntries.reduce(
-    (sum, entry) => sum + entry.item.price * entry.quantity,
+    (sum, entry) => sum + entry.item.price * entry.unitQuantity,
     0,
   )
   const transportFees = selectedEntries.length * TRANSPORT_FEE_PER_PRODUCT
@@ -157,7 +168,7 @@ const ClientOrderPage = () => {
         notes,
         entries: selectedEntries.map((entry) => ({
           itemId: entry.item.id,
-          quantity: entry.quantity,
+          quantity: entry.unitQuantity,
           comment: entry.comment,
         })),
       })
@@ -205,7 +216,7 @@ const ClientOrderPage = () => {
           </p>
         </div>
       ) : (
-        <form className="grid-2" onSubmit={handleSubmit}>
+        <form className="grid-2" onSubmit={handleSubmit} noValidate>
           <div className="card">
             <fieldset className="form-section">
               <legend>Informations client</legend>
@@ -244,7 +255,11 @@ const ClientOrderPage = () => {
               <div className="items-grid">
                 {items.map((item) => {
                   const currentValue = selection[item.id] ?? 0
-                  const currentSubtotal = item.price * currentValue
+                  const currentUnitQuantity = toUnitQuantity(
+                    item,
+                    currentValue,
+                  )
+                  const currentSubtotal = item.price * currentUnitQuantity
                   const error = quantityErrors[item.id]
                   const commentValue = comments[item.id] ?? ''
                   return (
@@ -304,14 +319,15 @@ const ClientOrderPage = () => {
                     <div>
                       <strong>{entry.item.name}</strong>
                       <p className="muted">
-                        {entry.quantity}{' '}
-                        {QUANTITY_TYPE_LABELS[entry.item.quantityType]}
+                        {entry.quantity} {displayUnitLabelFor(entry.item)}
                       </p>
                       {entry.comment && (
                         <p className="muted">Commentaire : {entry.comment}</p>
                       )}
                     </div>
-                    <span>{formatAriary(entry.item.price * entry.quantity)}</span>
+                    <span>
+                      {formatAriary(entry.item.price * entry.unitQuantity)}
+                    </span>
                   </li>
                 ))}
               </ul>
