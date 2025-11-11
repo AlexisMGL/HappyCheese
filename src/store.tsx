@@ -485,12 +485,38 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const removeClient = async (id: string) => {
-    const { error } = await supabase.from('clients').delete().eq('id', id)
+    const clientId = id.trim()
+    if (!clientId) {
+      throw new Error('Client introuvable.')
+    }
+
+    const { error: ordersUpdateError } = await supabase
+      .from('orders')
+      .update({ client_id: null })
+      .eq('client_id', clientId)
+    if (ordersUpdateError) {
+      throw ordersUpdateError
+    }
+
+    const { error: movementsError } = await supabase
+      .from('consign_movements')
+      .delete()
+      .eq('client_id', clientId)
+    if (movementsError) {
+      throw movementsError
+    }
+
+    const { error } = await supabase.from('clients').delete().eq('id', clientId)
     if (error) {
       throw error
     }
-    setClients((prev) => prev.filter((client) => client.id !== id))
-    setConsignTotals((prev) => prev.filter((entry) => entry.clientId !== id))
+    setClients((prev) => prev.filter((client) => client.id !== clientId))
+    setConsignTotals((prev) => prev.filter((entry) => entry.clientId !== clientId))
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.clientId === clientId ? { ...order, clientId: null } : order,
+      ),
+    )
   }
 
   const addConsignType = async (label: string) => {
@@ -514,12 +540,25 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const removeConsignType = async (id: string) => {
-    const { error } = await supabase.from('consign_types').delete().eq('id', id)
+    const typeId = id.trim()
+    if (!typeId) {
+      throw new Error('Type introuvable.')
+    }
+
+    const { error: movementsError } = await supabase
+      .from('consign_movements')
+      .delete()
+      .eq('type_id', typeId)
+    if (movementsError) {
+      throw movementsError
+    }
+
+    const { error } = await supabase.from('consign_types').delete().eq('id', typeId)
     if (error) {
       throw error
     }
-    setConsignTypes((prev) => prev.filter((type) => type.id !== id))
-    setConsignTotals((prev) => prev.filter((entry) => entry.typeId !== id))
+    setConsignTypes((prev) => prev.filter((type) => type.id !== typeId))
+    setConsignTotals((prev) => prev.filter((entry) => entry.typeId !== typeId))
   }
 
   const recordConsignMovements = useCallback(
