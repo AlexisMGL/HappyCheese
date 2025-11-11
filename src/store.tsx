@@ -25,6 +25,7 @@ interface NewOrderEntry {
 }
 
 interface NewOrder {
+  clientId: string
   customerName: string
   contact: string
   notes: string
@@ -63,6 +64,7 @@ type OrderRow = {
   customer_name: string
   contact: string | null
   notes: string | null
+  client_id: string | null
   created_at: string
   status: OrderStatus
   order_items: OrderItemRow[]
@@ -100,6 +102,7 @@ const mapOrderFromRow = (row: OrderRow): Order => ({
   customerName: row.customer_name,
   contact: row.contact ?? '',
   notes: row.notes ?? '',
+  clientId: row.client_id,
   createdAt: row.created_at,
   status: row.status,
   entries: row.order_items.map(mapOrderEntryFromRow),
@@ -232,6 +235,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
+        client_id: payload.clientId,
         customer_name: payload.customerName,
         contact: payload.contact,
         notes: payload.notes,
