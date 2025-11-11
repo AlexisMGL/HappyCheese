@@ -180,6 +180,7 @@ const ClientOrderPage = () => {
 
     try {
       addOrder({
+        clientId: selectedClient.id,
         customerName: selectedClient.name,
         contact: selectedClient.contact,
         notes,

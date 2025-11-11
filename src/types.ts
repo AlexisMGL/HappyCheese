@@ -35,6 +35,7 @@ export interface Order {
   createdAt: string
   status: OrderStatus
   entries: OrderEntry[]
+  clientId?: string | null
 }
 
 export interface Client {
