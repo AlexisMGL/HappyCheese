@@ -37,6 +37,13 @@ export interface Order {
   entries: OrderEntry[]
 }
 
+export interface Client {
+  id: string
+  name: string
+  contact: string
+  createdAt: string
+}
+
 export const ORDER_STATUS_OPTIONS: Array<{ id: OrderStatus; label: string }> = [
   { id: 'nouvelle', label: 'Nouvelle commande' },
   { id: 'en_cours', label: 'En cours' },

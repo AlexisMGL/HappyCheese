@@ -9,6 +9,7 @@ import {
 } from 'react'
 import {
   QUANTITY_INPUT_STEP,
+  type Client,
   type CheeseItem,
   type Order,
   type OrderEntry,
@@ -33,6 +34,7 @@ interface NewOrder {
 interface AppDataContextShape {
   items: CheeseItem[]
   orders: Order[]
+  clients: Client[]
   loading: boolean
   addItem: (payload: Omit<CheeseItem, 'id'>) => Promise<void>
   updateItem: (id: string, payload: Omit<CheeseItem, 'id'>) => Promise<void>
@@ -40,6 +42,8 @@ interface AppDataContextShape {
   addOrder: (payload: NewOrder) => Promise<void>
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>
   removeOrder: (id: string) => Promise<void>
+  addClient: (payload: { name: string; contact?: string }) => Promise<void>
+  removeClient: (id: string) => Promise<void>
 }
 
 const AppDataContext = createContext<AppDataContextShape | undefined>(undefined)
@@ -74,6 +78,13 @@ type OrderItemRow = {
   comment: string | null
 }
 
+type ClientRow = {
+  id: string
+  name: string
+  contact: string | null
+  created_at: string
+}
+
 const mapItemFromRow = (row: ItemRow): CheeseItem => ({
   id: row.id,
   name: row.name,
@@ -104,6 +115,13 @@ const mapOrderEntryFromRow = (row: OrderItemRow): OrderEntry => ({
   comment: row.comment ?? undefined,
 })
 
+const mapClientFromRow = (row: ClientRow): Client => ({
+  id: row.id,
+  name: row.name,
+  contact: row.contact ?? '',
+  createdAt: row.created_at,
+})
+
 const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => ({
   name: payload.name,
   price: payload.price,
@@ -119,6 +137,7 @@ const normalizeItemPayload = (payload: Omit<CheeseItem, 'id'>) => ({
 export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CheeseItem[]>([])
   const [orders, setOrders] = useState<Order[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchItems = useCallback(async () => {
@@ -145,17 +164,29 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     setOrders((data ?? []).map(mapOrderFromRow))
   }, [])
 
+  const fetchClients = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('name')
+    if (error) {
+      console.error(error)
+      throw error
+    }
+    setClients((data ?? []).map(mapClientFromRow))
+  }, [])
+
   useEffect(() => {
     ;(async () => {
       try {
-        await Promise.all([fetchItems(), fetchOrders()])
+        await Promise.all([fetchItems(), fetchOrders(), fetchClients()])
       } catch (error) {
         console.error('Supabase init error', error)
       } finally {
         setLoading(false)
       }
     })()
-  }, [fetchItems, fetchOrders])
+  }, [fetchItems, fetchOrders, fetchClients])
 
   const addItem = async (payload: Omit<CheeseItem, 'id'>) => {
     const dbPayload = normalizeItemPayload(payload)
@@ -266,10 +297,43 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     setOrders((prev) => prev.filter((order) => order.id !== id))
   }
 
+  const addClient = async (payload: { name: string; contact?: string }) => {
+    const name = payload.name.trim()
+    if (!name) {
+      throw new Error('Le nom du client est obligatoire.')
+    }
+    const contact = payload.contact?.trim() ?? ''
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        name,
+        contact: contact || null,
+      })
+      .select('*')
+      .single()
+    if (error || !data) {
+      throw error
+    }
+    setClients((prev) =>
+      [...prev, mapClientFromRow(data)].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    )
+  }
+
+  const removeClient = async (id: string) => {
+    const { error } = await supabase.from('clients').delete().eq('id', id)
+    if (error) {
+      throw error
+    }
+    setClients((prev) => prev.filter((client) => client.id !== id))
+  }
+
   const value = useMemo(
     () => ({
       items,
       orders,
+      clients,
       loading,
       addItem,
       updateItem,
@@ -277,8 +341,10 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       addOrder,
       updateOrderStatus,
       removeOrder,
+      addClient,
+      removeClient,
     }),
-    [items, orders, loading],
+    [items, orders, clients, loading],
   )
 
   return (
