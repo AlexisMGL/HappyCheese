@@ -45,6 +45,18 @@ export interface Client {
   createdAt: string
 }
 
+export interface ConsignType {
+  id: string
+  label: string
+  createdAt: string
+}
+
+export interface ConsignTotal {
+  clientId: string
+  typeId: string
+  quantity: number
+}
+
 export const ORDER_STATUS_OPTIONS: Array<{ id: OrderStatus; label: string }> = [
   { id: 'nouvelle', label: 'Nouvelle commande' },
   { id: 'en_cours', label: 'En cours' },
