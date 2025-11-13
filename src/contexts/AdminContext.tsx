@@ -109,12 +109,6 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          display_name: displayName,
-          is_admin: false,
-        },
-      },
     })
 
     if (error) {
@@ -122,6 +116,16 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       setAuthError(error.message)
       setIsAuthLoading(false)
       throw error
+    }
+
+    if (displayName.trim()) {
+      const { error: profileError } = await supabase.auth.updateUser({
+        data: { display_name: displayName.trim() },
+      })
+      if (profileError) {
+        console.error('Supabase updateUser error', profileError)
+        setAuthError(profileError.message)
+      }
     }
 
     setIsAuthLoading(false)
