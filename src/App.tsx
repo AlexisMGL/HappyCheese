@@ -1,3 +1,9 @@
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import ClientOrderPage from './pages/ClientOrderPage.tsx'
 import ClientsPage from './pages/ClientsPage.tsx'
@@ -17,28 +23,105 @@ const navLinks = [
 
 import logoImage from '../Logo_Faharetana.png'
 
-const AppLayout = () => {
-  const { isAdmin, setAdmin } = useAdmin()
+const AdminAuthControl = () => {
+  const { isAdmin, user, authError, isAuthLoading, login, logout } = useAdmin()
+  const [showForm, setShowForm] = useState(false)
+  const [formValues, setFormValues] = useState({ email: '', password: '' })
 
-  const handleAdminToggle = () => {
+  useEffect(() => {
     if (isAdmin) {
-      setAdmin(false)
+      setShowForm(false)
+      setFormValues({ email: '', password: '' })
+    }
+  }, [isAdmin])
+
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.currentTarget
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!formValues.email || !formValues.password) {
       return
     }
-    const password = window.prompt('Mot de passe administrateur ?')
-    if (password === null) {
-      return
-    }
-    if (password === 'TialoveCheese') {
-      setAdmin(true)
-    } else {
-      window.alert('Mot de passe incorrect.')
+    try {
+      await login(formValues.email, formValues.password)
+    } catch {
+      // handled via authError
     }
   }
 
-  const adminClasses = `admin-toggle ${
-    isAdmin ? 'is-admin' : 'non-admin'
-  }`
+  if (isAdmin) {
+    return (
+      <div className="auth-panel is-connected">
+        <span className="auth-user-email">{user?.email}</span>
+        <button
+          type="button"
+          className="admin-toggle is-admin"
+          onClick={() => {
+            void logout()
+          }}
+          disabled={isAuthLoading}
+        >
+          {isAuthLoading ? 'Deconnexion...' : 'Se deconnecter'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="auth-panel">
+      <button
+        type="button"
+        className="admin-toggle non-admin"
+        onClick={() => setShowForm((prev) => !prev)}
+        aria-expanded={showForm}
+      >
+        {showForm ? 'Annuler' : 'Connexion admin'}
+      </button>
+
+      {showForm && (
+        <form className="auth-form" onSubmit={handleLoginSubmit}>
+          <input
+            type="email"
+            name="email"
+            autoComplete="email"
+            placeholder="Email"
+            value={formValues.email}
+            onChange={handleInputChange}
+            disabled={isAuthLoading}
+            required
+          />
+          <input
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            placeholder="Mot de passe"
+            value={formValues.password}
+            onChange={handleInputChange}
+            disabled={isAuthLoading}
+            required
+          />
+          <button
+            type="submit"
+            className="admin-toggle is-admin"
+            disabled={isAuthLoading}
+          >
+            {isAuthLoading ? 'Connexion...' : 'Se connecter'}
+          </button>
+        </form>
+      )}
+
+      {authError && <p className="auth-error">{authError}</p>}
+    </div>
+  )
+}
+
+const AppLayout = () => {
 
   return (
     <div className="app-shell">
@@ -68,14 +151,7 @@ const AppLayout = () => {
               </NavLink>
             ))}
           </nav>
-          <button
-            type="button"
-            className={adminClasses}
-            onClick={handleAdminToggle}
-            aria-pressed={isAdmin}
-          >
-            {isAdmin ? 'admin' : 'non admin'}
-          </button>
+          <AdminAuthControl />
         </div>
       </header>
 
