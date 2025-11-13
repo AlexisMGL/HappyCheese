@@ -15,8 +15,8 @@ interface AdminContextValue {
   user: User | null
   isAuthLoading: boolean
   authError: string | null
-  login: (email: string, password: string) => Promise<void>
-  signup: (email: string, password: string) => Promise<void>
+  login: (phone: string, password: string) => Promise<void>
+  signup: (phone: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -76,12 +76,12 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (phone: string, password: string) => {
     setIsAuthLoading(true)
     setAuthError(null)
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      phone,
       password,
     })
 
@@ -95,12 +95,12 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthLoading(false)
   }, [])
 
-  const signup = useCallback(async (email: string, password: string) => {
+  const signup = useCallback(async (phone: string, password: string) => {
     setIsAuthLoading(true)
     setAuthError(null)
 
     const { error } = await supabase.auth.signUp({
-      email,
+      phone,
       password,
     })
 

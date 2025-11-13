@@ -31,7 +31,7 @@ const AdminAuthControl = () => {
   const [showForm, setShowForm] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [formValues, setFormValues] = useState({
-    email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   })
@@ -42,7 +42,7 @@ const AdminAuthControl = () => {
       setShowForm(false)
       setAuthMode('login')
       setFormValues({
-        email: '',
+        phone: '',
         password: '',
         confirmPassword: '',
       })
@@ -73,7 +73,7 @@ const AdminAuthControl = () => {
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!formValues.email || !formValues.password) {
+    if (!formValues.phone || !formValues.password) {
       return
     }
     if (
@@ -85,12 +85,10 @@ const AdminAuthControl = () => {
     }
     try {
       if (authMode === 'login') {
-        await login(formValues.email, formValues.password)
+        await login(formValues.phone, formValues.password)
       } else {
-        await signup(formValues.email, formValues.password)
-        setLocalMessage(
-          "Compte cree. Verifiez vos emails pour confirmer l'inscription.",
-        )
+        await signup(formValues.phone, formValues.password)
+        setLocalMessage('Compte cree. Vous pouvez vous connecter.')
         setFormValues((prev) => ({
           ...prev,
           password: '',
@@ -105,7 +103,7 @@ const AdminAuthControl = () => {
   if (isAdmin) {
     return (
       <div className="auth-panel is-connected">
-        <span className="auth-user-email">{user?.email}</span>
+        <span className="auth-user-id">{user?.phone ?? user?.email}</span>
         <button
           type="button"
           className="admin-toggle is-admin"
@@ -157,11 +155,12 @@ const AdminAuthControl = () => {
           </div>
           <form className="auth-form" onSubmit={handleAuthSubmit}>
             <input
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="Email"
-              value={formValues.email}
+              type="tel"
+              name="phone"
+              autoComplete="tel"
+              inputMode="tel"
+              placeholder="Telephone (+261...)"
+              value={formValues.phone}
               onChange={handleInputChange}
               disabled={isAuthLoading}
               required
