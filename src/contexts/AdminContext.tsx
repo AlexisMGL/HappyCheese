@@ -16,10 +16,21 @@ interface AdminContextValue {
   isAuthLoading: boolean
   authError: string | null
   login: (email: string, password: string) => Promise<void>
+  signup: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined)
+
+const isUserAdmin = (candidate: User | null) => {
+  if (!candidate) {
+    return false
+  }
+  const appRole = candidate.app_metadata?.role
+  const metadataFlag =
+    candidate.user_metadata?.is_admin ?? candidate.app_metadata?.is_admin
+  return appRole === 'admin' || metadataFlag === true
+}
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
@@ -84,6 +95,30 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthLoading(false)
   }, [])
 
+  const signup = useCallback(async (email: string, password: string) => {
+    setIsAuthLoading(true)
+    setAuthError(null)
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          is_admin: false,
+        },
+      },
+    })
+
+    if (error) {
+      console.error('Supabase signup error', error)
+      setAuthError(error.message)
+      setIsAuthLoading(false)
+      throw error
+    }
+
+    setIsAuthLoading(false)
+  }, [])
+
   const logout = useCallback(async () => {
     setIsAuthLoading(true)
     setAuthError(null)
@@ -100,14 +135,15 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   const value = useMemo(
     () => ({
-      isAdmin: Boolean(user),
+      isAdmin: isUserAdmin(user),
       user,
       isAuthLoading,
       authError,
       login,
+      signup,
       logout,
     }),
-    [user, isAuthLoading, authError, login, logout],
+    [user, isAuthLoading, authError, login, signup, logout],
   )
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>

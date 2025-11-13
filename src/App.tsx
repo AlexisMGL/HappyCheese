@@ -23,17 +23,32 @@ const navLinks = [
 
 import logoImage from '../Logo_Faharetana.png'
 
+type AuthMode = 'login' | 'signup'
+
 const AdminAuthControl = () => {
-  const { isAdmin, user, authError, isAuthLoading, login, logout } = useAdmin()
+  const { isAdmin, user, authError, isAuthLoading, login, signup, logout } =
+    useAdmin()
   const [showForm, setShowForm] = useState(false)
-  const [formValues, setFormValues] = useState({ email: '', password: '' })
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [formValues, setFormValues] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [localMessage, setLocalMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (isAdmin) {
       setShowForm(false)
-      setFormValues({ email: '', password: '' })
+      setAuthMode('login')
+      setFormValues({ email: '', password: '', confirmPassword: '' })
+      setLocalMessage(null)
     }
   }, [isAdmin])
+
+  useEffect(() => {
+    setLocalMessage(null)
+  }, [authMode, authError])
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.currentTarget
@@ -43,13 +58,34 @@ const AdminAuthControl = () => {
     }))
   }
 
-  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleModeChange = (mode: AuthMode) => {
+    setAuthMode(mode)
+    setFormValues((prev) => ({
+      ...prev,
+      password: '',
+      confirmPassword: '',
+    }))
+  }
+
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!formValues.email || !formValues.password) {
       return
     }
+    if (authMode === 'signup' && formValues.password !== formValues.confirmPassword) {
+      setLocalMessage('Les mots de passe ne correspondent pas.')
+      return
+    }
+
     try {
-      await login(formValues.email, formValues.password)
+      if (authMode === 'login') {
+        await login(formValues.email, formValues.password)
+      } else {
+        await signup(formValues.email, formValues.password)
+        setLocalMessage(
+          "Compte cree. Verifiez vos emails pour confirmer l'inscription.",
+        )
+      }
     } catch {
       // handled via authError
     }
@@ -85,38 +121,86 @@ const AdminAuthControl = () => {
       </button>
 
       {showForm && (
-        <form className="auth-form" onSubmit={handleLoginSubmit}>
-          <input
-            type="email"
-            name="email"
-            autoComplete="email"
-            placeholder="Email"
-            value={formValues.email}
-            onChange={handleInputChange}
-            disabled={isAuthLoading}
-            required
-          />
-          <input
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            placeholder="Mot de passe"
-            value={formValues.password}
-            onChange={handleInputChange}
-            disabled={isAuthLoading}
-            required
-          />
-          <button
-            type="submit"
-            className="admin-toggle is-admin"
-            disabled={isAuthLoading}
-          >
-            {isAuthLoading ? 'Connexion...' : 'Se connecter'}
-          </button>
-        </form>
+        <>
+          <div className="auth-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              className={authMode === 'login' ? 'auth-tab is-active' : 'auth-tab'}
+              aria-selected={authMode === 'login'}
+              onClick={() => handleModeChange('login')}
+              disabled={isAuthLoading && authMode === 'login'}
+            >
+              Connexion
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={authMode === 'signup' ? 'auth-tab is-active' : 'auth-tab'}
+              aria-selected={authMode === 'signup'}
+              onClick={() => handleModeChange('signup')}
+              disabled={isAuthLoading && authMode === 'signup'}
+            >
+              Creer un compte
+            </button>
+          </div>
+          <form className="auth-form" onSubmit={handleAuthSubmit}>
+            <input
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="Email"
+              value={formValues.email}
+              onChange={handleInputChange}
+              disabled={isAuthLoading}
+              required
+            />
+            <input
+              type="password"
+              name="password"
+              autoComplete={
+                authMode === 'signup' ? 'new-password' : 'current-password'
+              }
+              placeholder="Mot de passe"
+              value={formValues.password}
+              onChange={handleInputChange}
+              disabled={isAuthLoading}
+              required
+            />
+            {authMode === 'signup' && (
+              <input
+                type="password"
+                name="confirmPassword"
+                autoComplete="new-password"
+                placeholder="Confirmer le mot de passe"
+                value={formValues.confirmPassword}
+                onChange={handleInputChange}
+                disabled={isAuthLoading}
+                required
+              />
+            )}
+            <button
+              type="submit"
+              className="admin-toggle is-admin"
+              disabled={isAuthLoading}
+            >
+              {isAuthLoading
+                ? authMode === 'login'
+                  ? 'Connexion...'
+                  : 'Creation...'
+                : authMode === 'login'
+                  ? 'Se connecter'
+                  : 'Creer mon compte'}
+            </button>
+          </form>
+        </>
       )}
 
-      {authError && <p className="auth-error">{authError}</p>}
+      {(authError || localMessage) && (
+        <p className={authError ? 'auth-error' : 'auth-helper'}>
+          {authError ?? localMessage}
+        </p>
+      )}
     </div>
   )
 }
