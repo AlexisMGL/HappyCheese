@@ -10,21 +10,13 @@ import {
 } from 'react'
 import { supabase } from '../lib/supabaseClient.ts'
 
-interface SignupPayload {
-  email: string
-  password: string
-  displayName: string
-  phone: string
-  company?: string
-}
-
 interface AdminContextValue {
   isAdmin: boolean
   user: User | null
   isAuthLoading: boolean
   authError: string | null
   login: (email: string, password: string) => Promise<void>
-  signup: (payload: SignupPayload) => Promise<void>
+  signup: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -103,22 +95,13 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthLoading(false)
   }, [])
 
-  const signup = useCallback(async (payload: SignupPayload) => {
-    const { email, password, displayName, phone, company } = payload
+  const signup = useCallback(async (email: string, password: string) => {
     setIsAuthLoading(true)
     setAuthError(null)
 
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          is_admin: false,
-          display_name: displayName,
-          phone,
-          company: company ?? '',
-        },
-      },
     })
 
     if (error) {

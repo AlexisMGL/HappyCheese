@@ -34,9 +34,6 @@ const AdminAuthControl = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: '',
-    phone: '',
-    company: '',
   })
   const [localMessage, setLocalMessage] = useState<string | null>(null)
 
@@ -48,9 +45,6 @@ const AdminAuthControl = () => {
         email: '',
         password: '',
         confirmPassword: '',
-        displayName: '',
-        phone: '',
-        company: '',
       })
       setLocalMessage(null)
     }
@@ -89,25 +83,11 @@ const AdminAuthControl = () => {
       setLocalMessage('Les mots de passe ne correspondent pas.')
       return
     }
-    if (
-      authMode === 'signup' &&
-      (!formValues.displayName.trim() || !formValues.phone.trim())
-    ) {
-      setLocalMessage("Nom d'usage et telephone sont obligatoires.")
-      return
-    }
-
     try {
       if (authMode === 'login') {
         await login(formValues.email, formValues.password)
       } else {
-        await signup({
-          email: formValues.email,
-          password: formValues.password,
-          displayName: formValues.displayName.trim(),
-          phone: formValues.phone.trim(),
-          company: formValues.company.trim() || undefined,
-        })
+        await signup(formValues.email, formValues.password)
         setLocalMessage(
           "Compte cree. Verifiez vos emails pour confirmer l'inscription.",
         )
@@ -186,39 +166,6 @@ const AdminAuthControl = () => {
               disabled={isAuthLoading}
               required
             />
-            {authMode === 'signup' && (
-              <>
-                <input
-                  type="text"
-                  name="displayName"
-                  autoComplete="name"
-                  placeholder="Nom d'usage"
-                  value={formValues.displayName}
-                  onChange={handleInputChange}
-                  disabled={isAuthLoading}
-                  required
-                />
-                <input
-                  type="tel"
-                  name="phone"
-                  autoComplete="tel"
-                  placeholder="Telephone"
-                  value={formValues.phone}
-                  onChange={handleInputChange}
-                  disabled={isAuthLoading}
-                  required
-                />
-                <input
-                  type="text"
-                  name="company"
-                  autoComplete="organization"
-                  placeholder="Societe (facultatif)"
-                  value={formValues.company}
-                  onChange={handleInputChange}
-                  disabled={isAuthLoading}
-                />
-              </>
-            )}
             <input
               type="password"
               name="password"
