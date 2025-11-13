@@ -189,7 +189,7 @@ a {
   text-align: right;
 }
 
-.auth-user-id {
+.auth-user-email {
   font-size: 0.9rem;
   color: var(--text-muted);
 }

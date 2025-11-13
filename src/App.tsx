@@ -31,7 +31,8 @@ const AdminAuthControl = () => {
   const [showForm, setShowForm] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [formValues, setFormValues] = useState({
-    phone: '',
+    email: '',
+    displayName: '',
     password: '',
     confirmPassword: '',
   })
@@ -42,7 +43,8 @@ const AdminAuthControl = () => {
       setShowForm(false)
       setAuthMode('login')
       setFormValues({
-        phone: '',
+        email: '',
+        displayName: '',
         password: '',
         confirmPassword: '',
       })
@@ -73,7 +75,7 @@ const AdminAuthControl = () => {
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!formValues.phone || !formValues.password) {
+    if (!formValues.email || !formValues.password) {
       return
     }
     if (
@@ -85,9 +87,17 @@ const AdminAuthControl = () => {
     }
     try {
       if (authMode === 'login') {
-        await login(formValues.phone, formValues.password)
+        await login(formValues.email, formValues.password)
       } else {
-        await signup(formValues.phone, formValues.password)
+        if (!formValues.displayName.trim()) {
+          setLocalMessage("Le nom d'usage est obligatoire.")
+          return
+        }
+        await signup({
+          email: formValues.email,
+          password: formValues.password,
+          displayName: formValues.displayName.trim(),
+        })
         setLocalMessage('Compte cree. Vous pouvez vous connecter.')
         setFormValues((prev) => ({
           ...prev,
@@ -103,7 +113,9 @@ const AdminAuthControl = () => {
   if (isAdmin) {
     return (
       <div className="auth-panel is-connected">
-        <span className="auth-user-id">{user?.phone ?? user?.email}</span>
+        <span className="auth-user-email">
+          {user?.user_metadata?.display_name ?? user?.email}
+        </span>
         <button
           type="button"
           className="admin-toggle is-admin"
@@ -155,16 +167,27 @@ const AdminAuthControl = () => {
           </div>
           <form className="auth-form" onSubmit={handleAuthSubmit}>
             <input
-              type="tel"
-              name="phone"
-              autoComplete="tel"
-              inputMode="tel"
-              placeholder="Telephone (+261...)"
-              value={formValues.phone}
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="Email"
+              value={formValues.email}
               onChange={handleInputChange}
               disabled={isAuthLoading}
               required
             />
+            {authMode === 'signup' && (
+              <input
+                type="text"
+                name="displayName"
+                autoComplete="name"
+                placeholder="Nom d'usage"
+                value={formValues.displayName}
+                onChange={handleInputChange}
+                disabled={isAuthLoading}
+                required
+              />
+            )}
             <input
               type="password"
               name="password"
