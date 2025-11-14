@@ -250,7 +250,7 @@ const ClientOrderPage = () => {
                     )}
                   </div>
                   <div className="form-field">
-                    <span>Contact (non modifiable)</span>
+                    <span>Contact</span>
                     <p className="muted">
                       {contactInfo || 'Aucun contact disponible'}
                     </p>

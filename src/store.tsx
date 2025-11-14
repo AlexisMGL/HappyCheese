@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -267,6 +268,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [consignTotals, setConsignTotals] = useState<ConsignTotal[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAdmin()
+  const ensuredClientIdsRef = useRef<Set<string>>(new Set())
 
   const fetchItems = useCallback(async () => {
     const { data, error } = await supabase
@@ -327,29 +329,40 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     setConsignTotals(buildConsignTotalsFromRows(data ?? []))
   }, [])
 
-  useEffect(() => {
+  const ensureClientProfile = useCallback(async () => {
     if (!user) {
       return
     }
-    const syncClientProfile = async () => {
-      const displayName = getUserDisplayName(user) || user.email || 'Client'
-      const contact = getUserContact(user)
-      const payload = {
-        id: user.id,
-        name: displayName,
-        contact: contact || null,
-      }
-      const { error } = await supabase
-        .from('clients')
-        .upsert(payload, { onConflict: 'id' })
-      if (error) {
-        console.error('Supabase client sync error', error)
-        return
-      }
-      await fetchClients()
+    if (ensuredClientIdsRef.current.has(user.id)) {
+      return
     }
-    void syncClientProfile()
+    const displayName = getUserDisplayName(user) || user.email || 'Client'
+    const contact = getUserContact(user)
+    const payload = {
+      id: user.id,
+      name: displayName,
+      contact: contact || null,
+    }
+    const { error } = await supabase
+      .from('clients')
+      .upsert(payload, { onConflict: 'id' })
+    if (error) {
+      console.error('Supabase client sync error', error)
+      throw error
+    }
+    ensuredClientIdsRef.current.add(user.id)
+    await fetchClients()
   }, [user, fetchClients])
+
+  useEffect(() => {
+    if (!user) {
+      ensuredClientIdsRef.current.clear()
+      return
+    }
+    void ensureClientProfile().catch(() => {
+      ensuredClientIdsRef.current.delete(user.id)
+    })
+  }, [user, ensureClientProfile])
 
   useEffect(() => {
     ;(async () => {
@@ -413,8 +426,15 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const addOrder = async (payload: NewOrder) => {
+    if (user) {
+      try {
+        await ensureClientProfile()
+      } catch {
+        // backend FK constraint will raise if sync still missing
+      }
+    }
     if (!payload.entries.length) {
-      throw new Error('Impossible de créer une commande vide.')
+      throw new Error('Impossible de creer une commande vide.')
     }
     const { data: order, error: orderError } = await supabase
       .from('orders')
