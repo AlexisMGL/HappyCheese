@@ -8,8 +8,7 @@ import {
 } from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
 import { useAdmin } from '../contexts/AdminContext.tsx'
-
-const TRANSPORT_FEE_PER_PRODUCT = 1000
+import { TRANSPORT_FEE_PER_PRODUCT } from '../utils/orders.ts'
 
 const getStatusLabel = (status: OrderStatus) =>
   ORDER_STATUS_OPTIONS.find((option) => option.id === status)?.label ?? status

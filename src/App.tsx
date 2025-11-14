@@ -4,12 +4,14 @@ import {
   useState,
   type ChangeEvent,
   type FormEvent,
+  type ReactElement,
 } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import ClientOrderPage from './pages/ClientOrderPage.tsx'
 import ConsignesPage from './pages/ConsignesPage.tsx'
 import ConfigPage from './pages/ConfigPage.tsx'
 import OwnerPage from './pages/OwnerPage.tsx'
+import AnalyticsPage from './pages/AnalyticsPage.tsx'
 import { AppDataProvider } from './store.tsx'
 import { AdminProvider, useAdmin } from './contexts/AdminContext.tsx'
 import { getUserDisplayName } from './utils/user.ts'
@@ -667,7 +669,17 @@ const AdminAuthControl = () => {
 }
 
 const AppLayout = () => {
-
+  const { isAdmin } = useAdmin()
+  const visibleNavLinks = useMemo(
+    () => {
+      const baseLinks = [...navLinks]
+      if (isAdmin) {
+        baseLinks.push({ to: '/analytics', label: 'Analytics' })
+      }
+      return baseLinks
+    },
+    [isAdmin],
+  )
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -684,7 +696,7 @@ const AppLayout = () => {
         </div>
         <div className="admin-controls">
           <nav className="main-nav">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
@@ -705,12 +717,31 @@ const AppLayout = () => {
           <Route path="/" element={<ClientOrderPage />} />
           <Route path="/consignes" element={<ConsignesPage />} />
           <Route path="/config" element={<ConfigPage />} />
+          <Route
+            path="/analytics"
+            element={
+              <AdminRoute>
+                <AnalyticsPage />
+              </AdminRoute>
+            }
+          />
           <Route path="/owner" element={<OwnerPage />} />
           <Route path="*" element={<ClientOrderPage />} />
         </Routes>
       </main>
     </div>
   )
+}
+
+const AdminRoute = ({ children }: { children: ReactElement }) => {
+  const { isAdmin, isAuthLoading } = useAdmin()
+  if (isAuthLoading) {
+    return <div className="empty-state">Chargement administrateur...</div>
+  }
+  if (!isAdmin) {
+    return <Navigate to="/" replace />
+  }
+  return children
 }
 
 function App() {
