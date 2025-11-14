@@ -12,6 +12,7 @@ import {
   validateQuantityMultiple,
 } from '../utils/items.ts'
 import { getUserContact, getUserDisplayName } from '../utils/user.ts'
+import { TRANSPORT_FEE_PER_PRODUCT } from '../utils/orders.ts'
 import merciImage from '../../merci.png'
 
 type Feedback =
@@ -28,8 +29,6 @@ interface SelectedEntry {
 
 const quantityLabel = (item: CheeseItem) =>
   `Quantité (${displayUnitLabelFor(item)})`
-
-const TRANSPORT_FEE_PER_PRODUCT = 1000
 
 const ClientOrderPage = () => {
   const { items, addOrder } = useAppData()
