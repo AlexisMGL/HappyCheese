@@ -42,11 +42,6 @@ const ClientOrderPage = () => {
   )
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [showThanks, setShowThanks] = useState(false)
-  const [contactInfo, setContactInfo] = useState('')
-
-  useEffect(() => {
-    setContactInfo(getUserContact(user))
-  }, [user])
 
   const selectedEntries = useMemo<SelectedEntry[]>(
     () =>
@@ -77,6 +72,7 @@ const ClientOrderPage = () => {
     'AerialMetric'
   const company =
     (user?.user_metadata?.company as string | undefined)?.trim() || ''
+  const contactInfo = getUserContact(user)
 
   const productTotal = selectedEntries.reduce(
     (sum, entry) => sum + entry.item.price * entry.unitQuantity,
@@ -128,7 +124,6 @@ const ClientOrderPage = () => {
     setComments({})
     setNotes('')
     setQuantityErrors({})
-    setContactInfo(getUserContact(user))
   }
 
   useEffect(() => {
@@ -178,7 +173,7 @@ const ClientOrderPage = () => {
 
     try {
       const normalizedContact =
-        contactInfo.trim() || getUserContact(user) || user.email || ''
+        contactInfo || user.email || ''
       await addOrder({
         clientId: user.id,
         customerName: customerName || user.email || 'Client',
@@ -254,16 +249,12 @@ const ClientOrderPage = () => {
                       </p>
                     )}
                   </div>
-                  <label className="form-field">
-                    <span>Contact (telephone ou email)</span>
-                    <input
-                      type="text"
-                      value={contactInfo}
-                      onChange={(event) => setContactInfo(event.target.value)}
-                      placeholder="034 xx xxx xx"
-                      required
-                    />
-                  </label>
+                  <div className="form-field">
+                    <span>Contact (non modifiable)</span>
+                    <p className="muted">
+                      {contactInfo || 'Aucun contact disponible'}
+                    </p>
+                  </div>
                 </>
               )}
               <label className="form-field">
@@ -271,7 +262,7 @@ const ClientOrderPage = () => {
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Pr?cisions sur la livraison, pr?f?rences?"
+                  placeholder={'Pr\u00e9cisions sur la livraison, pr\u00e9f\u00e9rences...'}
                   rows={4}
                 />
               </label>
