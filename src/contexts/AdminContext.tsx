@@ -19,6 +19,18 @@ interface SignupPayload {
   deliveryLocation: string
 }
 
+interface UpdateProfilePayload {
+  displayName: string
+  phone: string
+  company?: string
+  deliveryLocation: string
+}
+
+interface ChangePasswordPayload {
+  currentPassword: string
+  newPassword: string
+}
+
 interface AdminContextValue {
   isAdmin: boolean
   user: User | null
@@ -27,6 +39,8 @@ interface AdminContextValue {
   login: (email: string, password: string) => Promise<void>
   signup: (payload: SignupPayload) => Promise<void>
   logout: () => Promise<void>
+  updateProfile: (payload: UpdateProfilePayload) => Promise<void>
+  changePassword: (payload: ChangePasswordPayload) => Promise<void>
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined)
@@ -157,6 +171,73 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthLoading(false)
   }, [])
 
+  const updateProfile = useCallback(
+    async (payload: UpdateProfilePayload) => {
+      const trimmedDisplayName = payload.displayName.trim()
+      const trimmedPhone = payload.phone.trim()
+      const trimmedCompany = payload.company?.trim() ?? ''
+      const trimmedDeliveryLocation = payload.deliveryLocation.trim()
+
+      if (!trimmedDisplayName) {
+        throw new Error("Le nom d'usage est obligatoire.")
+      }
+      if (!trimmedPhone) {
+        throw new Error('Le contact est obligatoire.')
+      }
+      if (!trimmedDeliveryLocation) {
+        throw new Error('Le lieu de livraison est obligatoire.')
+      }
+
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          display_name: trimmedDisplayName,
+          phone: trimmedPhone,
+          company: trimmedCompany || null,
+          delivery_location: trimmedDeliveryLocation,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (data?.user) {
+        setUser(data.user)
+      }
+    },
+    [],
+  )
+
+  const changePassword = useCallback(
+    async (payload: ChangePasswordPayload) => {
+      if (!user?.email) {
+        throw new Error('Ce compte ne comporte pas de courriel.')
+      }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: payload.currentPassword,
+      })
+
+      if (authError) {
+        throw new Error('Mot de passe actuel incorrect.')
+      }
+
+      const { data, error } = await supabase.auth.updateUser({
+        password: payload.newPassword,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (data?.user) {
+        setUser(data.user)
+      }
+    },
+    [user],
+  )
+
   const value = useMemo(
     () => ({
       isAdmin: isUserAdmin(user),
@@ -166,8 +247,19 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       login,
       signup,
       logout,
+      updateProfile,
+      changePassword,
     }),
-    [user, isAuthLoading, authError, login, signup, logout],
+    [
+      user,
+      isAuthLoading,
+      authError,
+      login,
+      signup,
+      logout,
+      updateProfile,
+      changePassword,
+    ],
   )
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>
