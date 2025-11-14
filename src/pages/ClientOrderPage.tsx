@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppData } from '../store.tsx'
+import { useAdmin } from '../contexts/AdminContext.tsx'
 import { QUANTITY_TYPE_LABELS } from '../types.ts'
 import type { CheeseItem } from '../types.ts'
 import { formatAriary } from '../utils/currency.ts'
@@ -10,6 +11,7 @@ import {
   toUnitQuantity,
   validateQuantityMultiple,
 } from '../utils/items.ts'
+import { getUserContact, getUserDisplayName } from '../utils/user.ts'
 import merciImage from '../../merci.png'
 
 type Feedback =
@@ -30,8 +32,8 @@ const quantityLabel = (item: CheeseItem) =>
 const TRANSPORT_FEE_PER_PRODUCT = 1000
 
 const ClientOrderPage = () => {
-  const { items, clients, addOrder } = useAppData()
-  const [selectedClientId, setSelectedClientId] = useState('')
+  const { items, addOrder } = useAppData()
+  const { user } = useAdmin()
   const [notes, setNotes] = useState('')
   const [selection, setSelection] = useState<Record<string, number>>({})
   const [comments, setComments] = useState<Record<string, string>>({})
@@ -40,6 +42,11 @@ const ClientOrderPage = () => {
   )
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [showThanks, setShowThanks] = useState(false)
+  const [contactInfo, setContactInfo] = useState('')
+
+  useEffect(() => {
+    setContactInfo(getUserContact(user))
+  }, [user])
 
   const selectedEntries = useMemo<SelectedEntry[]>(
     () =>
@@ -63,10 +70,13 @@ const ClientOrderPage = () => {
       }, []),
     [items, selection, comments],
   )
-  const selectedClient = useMemo(
-    () => clients.find((client) => client.id === selectedClientId),
-    [clients, selectedClientId],
-  )
+
+  const customerName = getUserDisplayName(user)
+  const deliveryLocation =
+    (user?.user_metadata?.delivery_location as string | undefined)?.trim() ||
+    'AerialMetric'
+  const company =
+    (user?.user_metadata?.company as string | undefined)?.trim() || ''
 
   const productTotal = selectedEntries.reduce(
     (sum, entry) => sum + entry.item.price * entry.unitQuantity,
@@ -116,22 +126,10 @@ const ClientOrderPage = () => {
   const resetForm = () => {
     setSelection({})
     setComments({})
-    setSelectedClientId('')
     setNotes('')
     setQuantityErrors({})
+    setContactInfo(getUserContact(user))
   }
-
-  useEffect(() => {
-    if (!selectedClientId) {
-      return
-    }
-    const stillExists = clients.some(
-      (client) => client.id === selectedClientId,
-    )
-    if (!stillExists) {
-      setSelectedClientId('')
-    }
-  }, [clients, selectedClientId])
 
   useEffect(() => {
     if (!showThanks) {
@@ -141,14 +139,14 @@ const ClientOrderPage = () => {
     return () => window.clearTimeout(timer)
   }, [showThanks])
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFeedback(null)
 
-    if (!selectedClient) {
+    if (!user) {
       setFeedback({
         type: 'error',
-        message: 'Selectionnez un client avant de valider.',
+        message: 'Connectez-vous pour passer commande.',
       })
       return
     }
@@ -179,10 +177,12 @@ const ClientOrderPage = () => {
     }
 
     try {
-      addOrder({
-        clientId: selectedClient.id,
-        customerName: selectedClient.name,
-        contact: selectedClient.contact,
+      const normalizedContact =
+        contactInfo.trim() || getUserContact(user) || user.email || ''
+      await addOrder({
+        clientId: user.id,
+        customerName: customerName || user.email || 'Client',
+        contact: normalizedContact,
         notes,
         entries: selectedEntries.map((entry) => ({
           itemId: entry.item.id,
@@ -237,51 +237,41 @@ const ClientOrderPage = () => {
         <form className="grid-2" onSubmit={handleSubmit} noValidate>
           <div className="card">
             <fieldset className="form-section">
-              <legend>Informations client</legend>
-              <label className="form-field">
-                <span>Choisir un client *</span>
-                <select
-                  value={selectedClientId}
-                  onChange={(event) => setSelectedClientId(event.target.value)}
-                  disabled={clients.length === 0}
-                  required
-                >
-                  <option value="">
-                    {clients.length === 0
-                      ? 'Ajoutez un client dans l onglet Clients'
-                      : 'Selectionnez un client'}
-                  </option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {clients.length === 0 ? (
+              <legend>Mes informations</legend>
+              {!user ? (
                 <p className="muted">
-                  Ajoutez au moins un client dans l onglet Clients avant de
-                  passer commande.
+                  Connectez-vous pour passer une commande.
                 </p>
-              ) : selectedClient ? (
-                <div className="client-preview">
-                  <strong>{selectedClient.name}</strong>
-                  {selectedClient.contact && (
-                    <p className="muted">{selectedClient.contact}</p>
-                  )}
-                </div>
               ) : (
-                <p className="muted">
-                  Selectionnez un client existant ou creez-en un dans l onglet
-                  Clients.
-                </p>
+                <>
+                  <div className="client-preview">
+                    <strong>{customerName || user.email}</strong>
+                    {company && <p className="muted">{company}</p>}
+                    {user.email && <p className="muted">{user.email}</p>}
+                    {deliveryLocation && (
+                      <p className="muted">
+                        Lieu de livraison : {deliveryLocation}
+                      </p>
+                    )}
+                  </div>
+                  <label className="form-field">
+                    <span>Contact (telephone ou email)</span>
+                    <input
+                      type="text"
+                      value={contactInfo}
+                      onChange={(event) => setContactInfo(event.target.value)}
+                      placeholder="034 xx xxx xx"
+                      required
+                    />
+                  </label>
+                </>
               )}
               <label className="form-field">
                 <span>Notes</span>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Précisions sur la livraison, préférences…"
+                  placeholder="Pr?cisions sur la livraison, pr?f?rences?"
                   rows={4}
                 />
               </label>

@@ -30,11 +30,9 @@ const statusClass = (status: string) => {
   }
 }
 
-const FIVE_MINUTES_IN_MS = 5 * 60 * 1000
-
 const OwnerPage = () => {
   const { orders, updateOrderStatus, removeOrder } = useAppData()
-  const { isAdmin } = useAdmin()
+  const { isAdmin, user } = useAdmin()
 
   const exportOrders = (ordersToExport: Order[], filename: string) => {
     if (!ordersToExport.length) {
@@ -94,21 +92,31 @@ const OwnerPage = () => {
     URL.revokeObjectURL(url)
   }
 
-  const handleExportAll = () => exportOrders(orders, 'commandes_all.csv')
+  const visibleOrders = useMemo(() => {
+    if (isAdmin) {
+      return orders
+    }
+    if (!user) {
+      return []
+    }
+    return orders.filter((order) => order.clientId === user.id)
+  }, [orders, isAdmin, user])
+
+  const handleExportAll = () => exportOrders(visibleOrders, 'commandes_all.csv')
 
   const handleExportEnCours = () =>
     exportOrders(
-      orders.filter((order) => order.status === 'en_cours'),
+      visibleOrders.filter((order) => order.status === 'en_cours'),
       'commandes_en_cours.csv',
     )
 
   const orderedList = useMemo(
     () =>
-      [...orders].sort(
+      [...visibleOrders].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       ),
-    [orders],
+    [visibleOrders],
   )
 
   return (
@@ -149,12 +157,8 @@ const OwnerPage = () => {
             const statusLabel = getStatusLabel(order.status as OrderStatus)
             const canDelete =
               order.status === 'nouvelle' || order.status === 'en_cours'
-            const createdAtTime = new Date(order.createdAt).getTime()
-            const isRecent =
-              Date.now() - createdAtTime < FIVE_MINUTES_IN_MS
-            const canDeleteForUser = canDelete && (isAdmin || isRecent)
             const showStatusControl = isAdmin
-            const showDeleteButton = canDeleteForUser
+            const showDeleteButton = isAdmin && canDelete
             return (
               <article className="order-card" key={order.id}>
                 <header>

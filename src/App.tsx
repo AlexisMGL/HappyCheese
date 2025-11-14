@@ -6,16 +6,15 @@ import {
 } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import ClientOrderPage from './pages/ClientOrderPage.tsx'
-import ClientsPage from './pages/ClientsPage.tsx'
 import ConsignesPage from './pages/ConsignesPage.tsx'
 import ConfigPage from './pages/ConfigPage.tsx'
 import OwnerPage from './pages/OwnerPage.tsx'
 import { AppDataProvider } from './store.tsx'
 import { AdminProvider, useAdmin } from './contexts/AdminContext.tsx'
+import { getUserDisplayName } from './utils/user.ts'
 
 const navLinks = [
   { to: '/', label: 'Commander' },
-  { to: '/clients', label: 'Clients' },
   { to: '/consignes', label: 'Consignes' },
   { to: '/config', label: 'Carte & Tarifs' },
   { to: '/owner', label: 'Suivi des commandes' },
@@ -48,11 +47,7 @@ const createInitialAuthFormValues = (): AuthFormValues => ({
 const AdminAuthControl = () => {
   const { user, authError, isAuthLoading, login, signup, logout } = useAdmin()
   const isLoggedIn = Boolean(user)
-  const displayName =
-    (user?.user_metadata?.display_name as string | undefined)?.trim() ||
-    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
-    user?.email ||
-    'Utilisateur connecte'
+  const displayName = getUserDisplayName(user) || 'Utilisateur connecte'
   const [showForm, setShowForm] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [formValues, setFormValues] = useState<AuthFormValues>(
@@ -342,7 +337,6 @@ const AppLayout = () => {
       <main className="page-content">
         <Routes>
           <Route path="/" element={<ClientOrderPage />} />
-          <Route path="/clients" element={<ClientsPage />} />
           <Route path="/consignes" element={<ConsignesPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/owner" element={<OwnerPage />} />

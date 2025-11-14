@@ -19,6 +19,8 @@ import {
   type QuantityType,
 } from './types.ts'
 import { supabase } from './lib/supabaseClient.ts'
+import { useAdmin } from './contexts/AdminContext.tsx'
+import { getUserContact, getUserDisplayName } from './utils/user.ts'
 
 interface NewOrderEntry {
   itemId: string
@@ -58,8 +60,6 @@ interface AppDataContextShape {
   addOrder: (payload: NewOrder) => Promise<void>
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>
   removeOrder: (id: string) => Promise<void>
-  addClient: (payload: { name: string; contact?: string }) => Promise<void>
-  removeClient: (id: string) => Promise<void>
   addConsignType: (label: string) => Promise<void>
   removeConsignType: (id: string) => Promise<void>
   assignConsigns: (payload: ConsignTransactionPayload) => Promise<void>
@@ -266,6 +266,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [consignTypes, setConsignTypes] = useState<ConsignType[]>([])
   const [consignTotals, setConsignTotals] = useState<ConsignTotal[]>([])
   const [loading, setLoading] = useState(true)
+  const { user } = useAdmin()
 
   const fetchItems = useCallback(async () => {
     const { data, error } = await supabase
@@ -325,6 +326,30 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     }
     setConsignTotals(buildConsignTotalsFromRows(data ?? []))
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+    const syncClientProfile = async () => {
+      const displayName = getUserDisplayName(user) || user.email || 'Client'
+      const contact = getUserContact(user)
+      const payload = {
+        id: user.id,
+        name: displayName,
+        contact: contact || null,
+      }
+      const { error } = await supabase
+        .from('clients')
+        .upsert(payload, { onConflict: 'id' })
+      if (error) {
+        console.error('Supabase client sync error', error)
+        return
+      }
+      await fetchClients()
+    }
+    void syncClientProfile()
+  }, [user, fetchClients])
 
   useEffect(() => {
     ;(async () => {
@@ -460,65 +485,6 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     setOrders((prev) => prev.filter((order) => order.id !== id))
   }
 
-  const addClient = async (payload: { name: string; contact?: string }) => {
-    const name = payload.name.trim()
-    if (!name) {
-      throw new Error('Le nom du client est obligatoire.')
-    }
-    const contact = payload.contact?.trim() ?? ''
-    const { data, error } = await supabase
-      .from('clients')
-      .insert({
-        name,
-        contact: contact || null,
-      })
-      .select('*')
-      .single()
-    if (error || !data) {
-      throw error
-    }
-    setClients((prev) =>
-      [...prev, mapClientFromRow(data)].sort((a, b) =>
-        a.name.localeCompare(b.name),
-      ),
-    )
-  }
-
-  const removeClient = async (id: string) => {
-    const clientId = id.trim()
-    if (!clientId) {
-      throw new Error('Client introuvable.')
-    }
-
-    const { error: ordersUpdateError } = await supabase
-      .from('orders')
-      .update({ client_id: null })
-      .eq('client_id', clientId)
-    if (ordersUpdateError) {
-      throw ordersUpdateError
-    }
-
-    const { error: movementsError } = await supabase
-      .from('consign_movements')
-      .delete()
-      .eq('client_id', clientId)
-    if (movementsError) {
-      throw movementsError
-    }
-
-    const { error } = await supabase.from('clients').delete().eq('id', clientId)
-    if (error) {
-      throw error
-    }
-    setClients((prev) => prev.filter((client) => client.id !== clientId))
-    setConsignTotals((prev) => prev.filter((entry) => entry.clientId !== clientId))
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.clientId === clientId ? { ...order, clientId: null } : order,
-      ),
-    )
-  }
-
   const addConsignType = async (label: string) => {
     const trimmedLabel = label.trim()
     if (!trimmedLabel) {
@@ -639,8 +605,6 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       addOrder,
       updateOrderStatus,
       removeOrder,
-      addClient,
-      removeClient,
       addConsignType,
       removeConsignType,
       assignConsigns,
