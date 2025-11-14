@@ -240,7 +240,9 @@ const AdminAuthControl = () => {
                   onChange={handleInputChange}
                   disabled={isAuthLoading}
                 />
+                <label htmlFor="deliveryLocationSelect">Site de livraison :</label>
                 <select
+                  id="deliveryLocationSelect"
                   name="deliveryLocation"
                   value={formValues.deliveryLocation}
                   onChange={handleInputChange}
