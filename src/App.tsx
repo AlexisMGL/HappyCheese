@@ -26,8 +26,13 @@ import logoImage from '../Logo_Faharetana.png'
 type AuthMode = 'login' | 'signup'
 
 const AdminAuthControl = () => {
-  const { isAdmin, user, authError, isAuthLoading, login, signup, logout } =
-    useAdmin()
+  const { user, authError, isAuthLoading, login, signup, logout } = useAdmin()
+  const isLoggedIn = Boolean(user)
+  const displayName =
+    (user?.user_metadata?.display_name as string | undefined)?.trim() ||
+    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
+    user?.email ||
+    'Utilisateur connecte'
   const [showForm, setShowForm] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [formValues, setFormValues] = useState({
@@ -39,7 +44,7 @@ const AdminAuthControl = () => {
   const [localMessage, setLocalMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isLoggedIn) {
       setShowForm(false)
       setAuthMode('login')
       setFormValues({
@@ -50,7 +55,7 @@ const AdminAuthControl = () => {
       })
       setLocalMessage(null)
     }
-  }, [isAdmin])
+  }, [isLoggedIn])
 
   useEffect(() => {
     setLocalMessage(null)
@@ -110,12 +115,10 @@ const AdminAuthControl = () => {
     }
   }
 
-  if (isAdmin) {
+  if (isLoggedIn) {
     return (
       <div className="auth-panel is-connected">
-        <span className="auth-user-email">
-          {user?.user_metadata?.display_name ?? user?.email}
-        </span>
+        <span className="auth-user-email">{displayName}</span>
         <button
           type="button"
           className="admin-toggle is-admin"
