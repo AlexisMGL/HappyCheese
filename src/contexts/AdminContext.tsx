@@ -14,6 +14,9 @@ interface SignupPayload {
   email: string
   password: string
   displayName: string
+  phone: string
+  company?: string
+  deliveryLocation: string
 }
 
 interface AdminContextValue {
@@ -102,13 +105,32 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const signup = useCallback(async (payload: SignupPayload) => {
-    const { email, password, displayName } = payload
+    const {
+      email,
+      password,
+      displayName,
+      phone,
+      company,
+      deliveryLocation,
+    } = payload
+    const trimmedDisplayName = displayName.trim()
+    const trimmedPhone = phone.trim()
+    const trimmedCompany = company?.trim() ?? ''
+    const trimmedDeliveryLocation = deliveryLocation.trim()
     setIsAuthLoading(true)
     setAuthError(null)
 
     const { error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
+      options: {
+        data: {
+          display_name: trimmedDisplayName,
+          phone: trimmedPhone,
+          company: trimmedCompany || null,
+          delivery_location: trimmedDeliveryLocation,
+        },
+      },
     })
 
     if (error) {
@@ -116,16 +138,6 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       setAuthError(error.message)
       setIsAuthLoading(false)
       throw error
-    }
-
-    if (displayName.trim()) {
-      const { error: profileError } = await supabase.auth.updateUser({
-        data: { display_name: displayName.trim() },
-      })
-      if (profileError) {
-        console.error('Supabase updateUser error', profileError)
-        setAuthError(profileError.message)
-      }
     }
 
     setIsAuthLoading(false)

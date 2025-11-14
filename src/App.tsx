@@ -25,6 +25,26 @@ import logoImage from '../Logo_Faharetana.png'
 
 type AuthMode = 'login' | 'signup'
 
+type AuthFormValues = {
+  email: string
+  displayName: string
+  phone: string
+  company: string
+  deliveryLocation: string
+  password: string
+  confirmPassword: string
+}
+
+const createInitialAuthFormValues = (): AuthFormValues => ({
+  email: '',
+  displayName: '',
+  phone: '',
+  company: '',
+  deliveryLocation: 'AerialMetric',
+  password: '',
+  confirmPassword: '',
+})
+
 const AdminAuthControl = () => {
   const { user, authError, isAuthLoading, login, signup, logout } = useAdmin()
   const isLoggedIn = Boolean(user)
@@ -35,24 +55,16 @@ const AdminAuthControl = () => {
     'Utilisateur connecte'
   const [showForm, setShowForm] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('login')
-  const [formValues, setFormValues] = useState({
-    email: '',
-    displayName: '',
-    password: '',
-    confirmPassword: '',
-  })
+  const [formValues, setFormValues] = useState<AuthFormValues>(
+    createInitialAuthFormValues,
+  )
   const [localMessage, setLocalMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (isLoggedIn) {
       setShowForm(false)
       setAuthMode('login')
-      setFormValues({
-        email: '',
-        displayName: '',
-        password: '',
-        confirmPassword: '',
-      })
+      setFormValues(createInitialAuthFormValues())
       setLocalMessage(null)
     }
   }, [isLoggedIn])
@@ -61,7 +73,9 @@ const AdminAuthControl = () => {
     setLocalMessage(null)
   }, [authMode, authError])
 
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = event.currentTarget
     setFormValues((prev) => ({
       ...prev,
@@ -94,14 +108,30 @@ const AdminAuthControl = () => {
       if (authMode === 'login') {
         await login(formValues.email, formValues.password)
       } else {
-        if (!formValues.displayName.trim()) {
+        const trimmedDisplayName = formValues.displayName.trim()
+        const trimmedPhone = formValues.phone.trim()
+        const trimmedCompany = formValues.company.trim()
+        const trimmedDeliveryLocation = formValues.deliveryLocation.trim()
+
+        if (!trimmedDisplayName) {
           setLocalMessage("Le nom d'usage est obligatoire.")
+          return
+        }
+        if (!trimmedPhone) {
+          setLocalMessage('Le telephone est obligatoire.')
+          return
+        }
+        if (!trimmedDeliveryLocation) {
+          setLocalMessage('Le lieu de livraison est obligatoire.')
           return
         }
         await signup({
           email: formValues.email,
           password: formValues.password,
-          displayName: formValues.displayName.trim(),
+          displayName: trimmedDisplayName,
+          phone: trimmedPhone,
+          company: trimmedCompany || undefined,
+          deliveryLocation: trimmedDeliveryLocation,
         })
         setLocalMessage('Compte cree. Vous pouvez vous connecter.')
         setFormValues((prev) => ({
@@ -180,16 +210,48 @@ const AdminAuthControl = () => {
               required
             />
             {authMode === 'signup' && (
-              <input
-                type="text"
-                name="displayName"
-                autoComplete="name"
-                placeholder="Nom d'usage"
-                value={formValues.displayName}
-                onChange={handleInputChange}
-                disabled={isAuthLoading}
-                required
-              />
+              <>
+                <input
+                  type="text"
+                  name="displayName"
+                  autoComplete="name"
+                  placeholder="Nom d'usage"
+                  value={formValues.displayName}
+                  onChange={handleInputChange}
+                  disabled={isAuthLoading}
+                  required
+                />
+                <input
+                  type="text"
+                  name="phone"
+                  autoComplete="tel"
+                  placeholder="Telephone"
+                  value={formValues.phone}
+                  onChange={handleInputChange}
+                  disabled={isAuthLoading}
+                  required
+                />
+                <input
+                  type="text"
+                  name="company"
+                  autoComplete="organization"
+                  placeholder="Societe (facultatif)"
+                  value={formValues.company}
+                  onChange={handleInputChange}
+                  disabled={isAuthLoading}
+                />
+                <select
+                  name="deliveryLocation"
+                  value={formValues.deliveryLocation}
+                  onChange={handleInputChange}
+                  disabled={isAuthLoading}
+                  aria-label="Lieu de livraison"
+                  title="Lieu de livraison"
+                  required
+                >
+                  <option value="AerialMetric">AerialMetric</option>
+                </select>
+              </>
             )}
             <input
               type="password"
