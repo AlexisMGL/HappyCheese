@@ -20,7 +20,6 @@ interface SignupPayload {
 }
 
 interface UpdateProfilePayload {
-  email: string
   displayName: string
   phone: string
   company?: string
@@ -172,65 +171,39 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthLoading(false)
   }, [])
 
-  const updateProfile = useCallback(
-    async (payload: UpdateProfilePayload) => {
-      const trimmedEmail = payload.email.trim()
-      const trimmedDisplayName = payload.displayName.trim()
-      const trimmedPhone = payload.phone.trim()
-      const trimmedCompany = payload.company?.trim() ?? ''
-      const trimmedDeliveryLocation = payload.deliveryLocation.trim()
+  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
+    const trimmedDisplayName = payload.displayName.trim()
+    const trimmedPhone = payload.phone.trim()
+    const trimmedCompany = payload.company?.trim() ?? ''
+    const trimmedDeliveryLocation = payload.deliveryLocation.trim()
 
-      if (!trimmedEmail) {
-        throw new Error('Le courriel est obligatoire.')
-      }
-      if (!trimmedDisplayName) {
-        throw new Error("Le nom d'usage est obligatoire.")
-      }
-      if (!trimmedPhone) {
-        throw new Error('Le contact est obligatoire.')
-      }
-      if (!trimmedDeliveryLocation) {
-        throw new Error('Le lieu de livraison est obligatoire.')
-      }
+    if (!trimmedDisplayName) {
+      throw new Error("Le nom d'usage est obligatoire.")
+    }
+    if (!trimmedPhone) {
+      throw new Error('Le contact est obligatoire.')
+    }
+    if (!trimmedDeliveryLocation) {
+      throw new Error('Le lieu de livraison est obligatoire.')
+    }
 
-      const currentEmail = user?.email?.trim() ?? ''
-      const shouldUpdateEmail =
-        trimmedEmail.toLowerCase() !== currentEmail.toLowerCase()
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        display_name: trimmedDisplayName,
+        phone: trimmedPhone,
+        company: trimmedCompany || null,
+        delivery_location: trimmedDeliveryLocation,
+      },
+    })
 
-      const baseUpdatePayload: Parameters<typeof supabase.auth.updateUser>[0] = {
-        data: {
-          display_name: trimmedDisplayName,
-          phone: trimmedPhone,
-          company: trimmedCompany || null,
-          delivery_location: trimmedDeliveryLocation,
-        },
-      }
+    if (error) {
+      throw error
+    }
 
-      const { data: metadataResult, error: metadataError } =
-        await supabase.auth.updateUser(baseUpdatePayload)
-      if (metadataError) {
-        throw metadataError
-      }
-
-      let latestUser = metadataResult?.user ?? null
-
-      if (shouldUpdateEmail) {
-        const { data: emailResult, error: emailError } =
-          await supabase.auth.updateUser({
-            email: trimmedEmail,
-          })
-        if (emailError) {
-          throw emailError
-        }
-        latestUser = emailResult?.user ?? latestUser
-      }
-
-      if (latestUser) {
-        setUser(latestUser)
-      }
-    },
-    [user],
-  )
+    if (data?.user) {
+      setUser(data.user)
+    }
+  }, [])
 
   const changePassword = useCallback(
     async (payload: ChangePasswordPayload) => {

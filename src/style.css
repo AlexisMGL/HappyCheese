@@ -409,6 +409,13 @@ select:focus {
   border-top: 2px solid var(--border);
 }
 
+.order-total strong {
+  margin-left: auto;
+  padding-left: 1.5rem;
+  min-width: 8rem;
+  text-align: right;
+}
+
 .primary-button {
   background: var(--accent);
   border: none;

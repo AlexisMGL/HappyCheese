@@ -124,7 +124,7 @@ const OwnerPage = () => {
       <div className="section-header">
         <div>
           <p className="eyebrow">Propriétaire</p>
-          <h2>Commandes entrantes</h2>
+          <h2>Tracking des commandes</h2>
           <p className="section-lead">
             Visualisez toutes les commandes clients, ajustez leur statut en un
             clic et préparez facilement les livraisons.
@@ -276,3 +276,4 @@ const OwnerPage = () => {
 }
 
 export default OwnerPage
+
