@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAdmin } from '../contexts/AdminContext.tsx'
 import { useAppData } from '../store.tsx'
+import { getUserDisplayName } from '../utils/user.ts'
 
 type Feedback =
   | { type: 'success'; message: string }
@@ -24,7 +25,7 @@ const ConsignesPage = () => {
     assignConsigns,
     returnConsigns,
   } = useAppData()
-  const { isAdmin } = useAdmin()
+  const { isAdmin, user } = useAdmin()
 
   const [newTypeLabel, setNewTypeLabel] = useState('')
   const [typeFeedback, setTypeFeedback] = useState<Feedback>(null)
@@ -71,6 +72,34 @@ const ConsignesPage = () => {
       }),
     [clients, outstandingByClient],
   )
+
+  const myDisplayName = getUserDisplayName(user)
+  const myOutstanding = useMemo(() => {
+    if (!user) {
+      return []
+    }
+    const map = new Map<string, number>()
+    consignTotals.forEach((entry) => {
+      if (entry.clientId === user.id && entry.quantity > 0) {
+        map.set(entry.typeId, entry.quantity)
+      }
+    })
+    if (map.size === 0) {
+      return []
+    }
+    const result: Array<{ typeId: string; label: string; quantity: number }> = []
+    consignTypes.forEach((type) => {
+      const quantity = map.get(type.id)
+      if (quantity && quantity > 0) {
+        result.push({ typeId: type.id, label: type.label, quantity })
+        map.delete(type.id)
+      }
+    })
+    map.forEach((quantity, typeId) => {
+      result.push({ typeId, label: typeId, quantity })
+    })
+    return result
+  }, [consignTotals, consignTypes, user])
 
   const currentReturnOutstanding = returnClientId
     ? outstandingByClient[returnClientId] ?? {}
@@ -235,7 +264,9 @@ const ConsignesPage = () => {
         </div>
       </div>
 
-      <div className="grid-2">
+      {isAdmin ? (
+        <>
+          <div className="grid-2">
         <div className="card">
           <div className="section-header">
             <h3>Types de consignes</h3>
@@ -509,6 +540,38 @@ const ConsignesPage = () => {
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <div className="card">
+          <div className="section-header">
+            <div>
+              <h3>Mes consignes</h3>
+              <p className="muted">
+                {myDisplayName
+                  ? `Suivi pour ${myDisplayName}`
+                  : 'Suivez les consignes liees a votre compte.'}
+              </p>
+            </div>
+          </div>
+          {!user ? (
+            <p className="muted">Connectez-vous pour consulter vos consignes.</p>
+          ) : myOutstanding.length === 0 ? (
+            <p className="muted">Aucune consigne en attente.</p>
+          ) : (
+            <ul className="summary-list">
+              {myOutstanding.map((entry) => (
+                <li key={entry.typeId}>
+                  <span>{entry.label}</span>
+                  <strong>{entry.quantity}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="muted">
+            Besoin d un ajustement ? Contactez l equipe Madacheese.
+          </p>
+        </div>
+      )}
     </section>
   )
 }
