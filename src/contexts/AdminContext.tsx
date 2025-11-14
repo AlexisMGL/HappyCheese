@@ -193,15 +193,26 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Le lieu de livraison est obligatoire.')
       }
 
-      const { data, error } = await supabase.auth.updateUser({
-        email: trimmedEmail,
+      const currentEmail = user?.email?.trim() ?? ''
+      const shouldUpdateEmail =
+        trimmedEmail.toLowerCase() !== currentEmail.toLowerCase()
+
+      const updatePayload: Parameters<
+        typeof supabase.auth.updateUser
+      >[0] = {
         data: {
           display_name: trimmedDisplayName,
           phone: trimmedPhone,
           company: trimmedCompany || null,
           delivery_location: trimmedDeliveryLocation,
         },
-      })
+      }
+
+      if (shouldUpdateEmail) {
+        updatePayload.email = trimmedEmail
+      }
+
+      const { data, error } = await supabase.auth.updateUser(updatePayload)
 
       if (error) {
         throw error
@@ -211,7 +222,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
         setUser(data.user)
       }
     },
-    [],
+    [user],
   )
 
   const changePassword = useCallback(
