@@ -197,9 +197,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       const shouldUpdateEmail =
         trimmedEmail.toLowerCase() !== currentEmail.toLowerCase()
 
-      const updatePayload: Parameters<
-        typeof supabase.auth.updateUser
-      >[0] = {
+      const baseUpdatePayload: Parameters<typeof supabase.auth.updateUser>[0] = {
         data: {
           display_name: trimmedDisplayName,
           phone: trimmedPhone,
@@ -208,18 +206,27 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
         },
       }
 
+      const { data: metadataResult, error: metadataError } =
+        await supabase.auth.updateUser(baseUpdatePayload)
+      if (metadataError) {
+        throw metadataError
+      }
+
+      let latestUser = metadataResult?.user ?? null
+
       if (shouldUpdateEmail) {
-        updatePayload.email = trimmedEmail
+        const { data: emailResult, error: emailError } =
+          await supabase.auth.updateUser({
+            email: trimmedEmail,
+          })
+        if (emailError) {
+          throw emailError
+        }
+        latestUser = emailResult?.user ?? latestUser
       }
 
-      const { data, error } = await supabase.auth.updateUser(updatePayload)
-
-      if (error) {
-        throw error
-      }
-
-      if (data?.user) {
-        setUser(data.user)
+      if (latestUser) {
+        setUser(latestUser)
       }
     },
     [user],
