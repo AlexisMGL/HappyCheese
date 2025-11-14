@@ -20,6 +20,7 @@ interface SignupPayload {
 }
 
 interface UpdateProfilePayload {
+  email: string
   displayName: string
   phone: string
   company?: string
@@ -173,11 +174,15 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = useCallback(
     async (payload: UpdateProfilePayload) => {
+      const trimmedEmail = payload.email.trim()
       const trimmedDisplayName = payload.displayName.trim()
       const trimmedPhone = payload.phone.trim()
       const trimmedCompany = payload.company?.trim() ?? ''
       const trimmedDeliveryLocation = payload.deliveryLocation.trim()
 
+      if (!trimmedEmail) {
+        throw new Error('Le courriel est obligatoire.')
+      }
       if (!trimmedDisplayName) {
         throw new Error("Le nom d'usage est obligatoire.")
       }
@@ -189,6 +194,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const { data, error } = await supabase.auth.updateUser({
+        email: trimmedEmail,
         data: {
           display_name: trimmedDisplayName,
           phone: trimmedPhone,

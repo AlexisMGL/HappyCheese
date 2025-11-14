@@ -26,6 +26,7 @@ import logoImage from '../Logo_Faharetana.png'
 type AuthMode = 'login' | 'signup'
 
 type ProfileFormState = {
+  email: string
   displayName: string
   phone: string
   company: string
@@ -77,10 +78,11 @@ const AdminAuthControl = () => {
   const isLoggedIn = Boolean(user)
   const displayName = getUserDisplayName(user) || 'Utilisateur connecte'
   const profileDefaults = useMemo<ProfileFormState>(() => {
+    const email = user?.email?.trim() ?? ''
     const display =
       (user?.user_metadata?.display_name as string | undefined)?.trim() ||
       (user?.user_metadata?.full_name as string | undefined)?.trim() ||
-      user?.email ||
+      email ||
       ''
     const phone =
       (user?.user_metadata?.phone as string | undefined)?.trim() ||
@@ -91,6 +93,7 @@ const AdminAuthControl = () => {
       (user?.user_metadata?.delivery_location as string | undefined)?.trim() ||
       'AerialMetric'
     return {
+      email,
       displayName: display,
       phone,
       company,
@@ -201,11 +204,19 @@ const AdminAuthControl = () => {
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setProfileFeedback(null)
+    const trimmedEmail = profileForm.email.trim()
     const trimmedDisplayName = profileForm.displayName.trim()
     const trimmedPhone = profileForm.phone.trim()
     const trimmedCompany = profileForm.company.trim()
     const trimmedDeliveryLocation = profileForm.deliveryLocation.trim()
 
+    if (!trimmedEmail) {
+      setProfileFeedback({
+        type: 'error',
+        message: 'Le courriel est obligatoire.',
+      })
+      return
+    }
     if (!trimmedDisplayName) {
       setProfileFeedback({
         type: 'error',
@@ -231,6 +242,7 @@ const AdminAuthControl = () => {
     try {
       setProfileSaving(true)
       await updateProfile({
+        email: trimmedEmail,
         displayName: trimmedDisplayName,
         phone: trimmedPhone,
         company: trimmedCompany,
@@ -241,6 +253,7 @@ const AdminAuthControl = () => {
         message: 'Profil mis a jour.',
       })
       setProfileForm({
+        email: trimmedEmail,
         displayName: trimmedDisplayName,
         phone: trimmedPhone,
         company: trimmedCompany,
@@ -416,9 +429,11 @@ const AdminAuthControl = () => {
                   <span>Email</span>
                   <input
                     type="email"
-                    value={user?.email ?? ''}
-                    readOnly
-                    disabled
+                    name="email"
+                    value={profileForm.email}
+                    onChange={handleProfileInputChange}
+                    autoComplete="email"
+                    required
                   />
                 </label>
                 <label className="form-field">
